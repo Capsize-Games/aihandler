@@ -4,8 +4,6 @@ import time
 from PyQt6 import QtCore
 from PyQt6.QtCore import QThread
 from aiengine.qtvar import BooleanVar
-from aiengine.runner import SDRunner
-from aiengine.llmrunner import LLMRunner
 from aiengine.logger import logger
 
 
@@ -70,6 +68,7 @@ class OfflineClient(QtCore.QObject):
         self.res_queue = queue.Queue()
         self.quit_event.set(False)
         self.logger = logger
+        self.runners = kwargs.get("runners", [])
         self.image_var = kwargs.get("image_var")
         self.error_var = kwargs.get("error_var")
         self.tqdm_var = kwargs.get("tqdm_var")
@@ -78,31 +77,25 @@ class OfflineClient(QtCore.QObject):
         self.do_start()
 
     def do_start(self):
-        if self.runner_type in ("sd", "mixed"):
-            self.init_sd_runner()
-        else:
-            self.init_chat_runner()
+        self.init_runners()
         self.force_request_worker_reset()
 
-    def init_sd_runner(self):
-        # save sd_runner to disc and load from it next time
-        # this is to avoid the overhead of creating a new sd_runner
-        # every time we start the client
-        self.sd_runner = SDRunner(
-            app=self.app,
-            tqdm_var=self.tqdm_var,
-            image_var=self.image_var,
-            message_var=self.message_var,
-        )
-
-    def init_chat_runner(self):
-        self.llm_runner = LLMRunner(
-            app=self.app,
-            tqdm_var=self.tqdm_var,
-            image_var=self.image_var,
-            message_var=self.message_var,
-            error_var=self.error_var,
-        )
+    def init_runners(self):
+        """
+        Set the runner signals (used to receive data from the runner)
+        :return:
+        """
+        for runner_class in self.runners:
+            runner = runner_class(
+                app=self.app,
+                tqdm_var=self.tqdm_var,
+                image_var=self.image_var,
+                message_var=self.message_var
+            )
+            if runner.__class__.__name__ == "LLMRunner":
+                self.llm_runner = runner
+            else:
+                self.sd_runner = runner
 
     def handle_response(self, response):
         """
@@ -151,7 +144,7 @@ class OfflineClient(QtCore.QObject):
 
     def handle_llm_request(self, **kwargs):
         if not self.llm_runner:
-            self.init_chat_runner()
+            print("LLMRunner not initialized.")
         data = kwargs.get("data", {})
         req_type = kwargs["type"]
         self.llm_runner.generate(
