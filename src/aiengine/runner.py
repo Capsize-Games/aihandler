@@ -3,13 +3,13 @@ import gc
 import cv2
 import numpy as np
 import requests
-from base_runner import BaseRunner
-from controlnet_utils import ade_palette
-from qtvar import ImageVar
+from aiengine.base_runner import BaseRunner
+from aiengine.controlnet_utils import ade_palette
+from aiengine.qtvar import ImageVar
 import traceback
 import torch
 import io
-from logger import logger
+from aiengine.logger import logger
 from PIL import Image
 from controlnet_aux import HEDdetector, MLSDdetector, OpenposeDetector
 

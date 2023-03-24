@@ -3,11 +3,10 @@ import queue
 import time
 from PyQt6 import QtCore
 from PyQt6.QtCore import QThread
-
-from qtvar import BooleanVar
-from runner import SDRunner
-from llmrunner import LLMRunner
-import logging
+from aiengine.qtvar import BooleanVar
+from aiengine.runner import SDRunner
+from aiengine.llmrunner import LLMRunner
+from aiengine.logger import logger
 
 
 class OfflineClient(QtCore.QObject):
@@ -70,7 +69,7 @@ class OfflineClient(QtCore.QObject):
         self.queue = queue.Queue()
         self.res_queue = queue.Queue()
         self.quit_event.set(False)
-        self.logger = logging.getLogger()
+        self.logger = logger
         self.image_var = kwargs.get("image_var")
         self.error_var = kwargs.get("error_var")
         self.tqdm_var = kwargs.get("tqdm_var")

@@ -1,6 +1,6 @@
 import os
-from qtvar import Var, BooleanVar, IntVar, StringVar, DoubleVar, FloatVar
-from settings import \
+from aiengine.qtvar import Var, BooleanVar, IntVar, StringVar, DoubleVar, FloatVar
+from aiengine.settings import \
     DEFAULT_MODEL, \
     DEFAULT_SCHEDULER, \
     DEFAULT_CANVAS_COLOR, \

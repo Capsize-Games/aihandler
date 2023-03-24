@@ -4,9 +4,9 @@ import numpy as np
 import random
 import spacy
 import torch
-from base_runner import BaseRunner
-from settings import TEXT_MODELS as MODELS
-from logger import logger
+from aiengine.base_runner import BaseRunner
+from aiengine.settings import TEXT_MODELS as MODELS
+from aiengine.logger import logger
 
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "0"

@@ -1,8 +1,8 @@
 from PyQt6.QtCore import QObject, pyqtSignal
-from qtvar import TQDMVar, ImageVar
-from settings_manager import SettingsManager
-from logger import logger
-from settings import AIRUNNER_ENVIRONMENT
+from aiengine.qtvar import TQDMVar, ImageVar
+from aiengine.settings_manager import SettingsManager
+from aiengine.logger import logger
+from aiengine.settings import AIRUNNER_ENVIRONMENT
 
 
 class BaseRunner(QObject):
