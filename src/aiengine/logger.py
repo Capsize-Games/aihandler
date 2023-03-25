@@ -25,6 +25,8 @@ class Logger:
         :param level:
         :return: None
         """
+        if level is None:
+            level = logging.DEBUG
         self.logger.setLevel(level)
         self.stream_handler.setLevel(level)
 
