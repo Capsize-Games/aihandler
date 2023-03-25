@@ -15,7 +15,6 @@ class BaseRunner(QObject):
 
     def __init__(self, *args, **kwargs):
         super().__init__()
-        logger.set_level(logger.DEBUG)# if self.is_dev_env else logger.FATAL)
         self.app = kwargs.get("app", None)
         self.settings_manager = SettingsManager(app=self.app)
         self._tqdm_var: TQDMVar = kwargs.get("tqdm_var", None)

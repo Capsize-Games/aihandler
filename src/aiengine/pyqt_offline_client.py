@@ -1,10 +1,10 @@
 import json
+from aiengine.logger import logger
 import queue
 import time
 from PyQt6 import QtCore
 from PyQt6.QtCore import QThread
 from aiengine.qtvar import BooleanVar
-from aiengine.logger import logger
 
 
 class OfflineClient(QtCore.QObject):
@@ -68,6 +68,7 @@ class OfflineClient(QtCore.QObject):
         self.res_queue = queue.Queue()
         self.quit_event.set(False)
         self.logger = logger
+        self.logger.set_level(kwargs.get("log_level"))
         self.runners = kwargs.get("runners", [])
         self.image_var = kwargs.get("image_var")
         self.error_var = kwargs.get("error_var")
