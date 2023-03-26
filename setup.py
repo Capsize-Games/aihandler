@@ -1,11 +1,4 @@
-"""
-A standard python setup.py file for aiengine that allows users to install with pip
-"""
 from setuptools import setup, find_packages
-
-extras = {}
-install_requires = [
-]
 
 setup(
     name='aiengine',
@@ -22,6 +15,39 @@ setup(
     packages=find_packages("src"),
     include_package_data=True,
     python_requires=">=3.10.0",
-    install_requires=install_requires,
-    extras_require=extras,
+    install_requires=[
+        "torch==1.13.1",
+        "torchvision==0.14.1",
+        "torchaudio==0.13.1",
+        "lightning==1.9.0",
+        "nvidia-pyindex",
+        "nvidia-tensorrt==8.4.3.1",
+        "tensorflow==2.9.3",
+        "triton==2.0.0.dev20221202",
+        "pyre-extensions==0.0.23",
+        "einops==0.6.0",
+        "ninja==1.11.1",
+        "JIT==0.2.7",
+        "xformers==0.0.16",
+        "pillow==9.4.0",
+        "ninja==1.11.1",
+        "fernet==1.0.1",
+        "pillow==9.4.0",
+        "safetensors==0.2.7",
+        "accelerate==0.15.0",
+        "transformers==4.26.0",
+        "bitsandbytes==0.36.0.post2",
+        "numpy==1.23.4",
+        "pyinstaller==5.7.0",
+        "scipy==1.10.0",
+        "opencv-python==4.7.0.68",
+        "deepspeed==0.8.0",
+        "zstandard",
+        "pyqt6==6.4.2",
+        "matplotlib",
+        "controlnet_aux",
+        "pyqtdarktheme",
+        "spacy==3.5.1",
+    ],
+    extras_require={},
 )
