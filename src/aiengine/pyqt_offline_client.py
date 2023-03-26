@@ -148,16 +148,25 @@ class OfflineClient(QtCore.QObject):
             print("LLMRunner not initialized.")
         data = kwargs.get("data", {})
         req_type = kwargs["type"]
-        self.llm_runner.generate(
-            user_input=data.get("user_input", None),
-            prompt=data.get("prompt", None),
-            seed=data["seed"],
-            **data["properties"],
-            username=data.get("username", None),
-            botname=data.get("botname", None),
-            conversation=data.get("conversation", None),
-            type=req_type,
-        )
+        user_input = data.get("user_input", None)
+
+        if req_type == "chat":
+            self.llm_runner.generate_bot_response()
+        elif req_type == "action":
+            self.llm_runner.generate_reaction(user_input)
+        elif req_type == "generate_characters":
+            self.llm_runner.generate_character_prompt()
+        else:
+            properties = data["properties"]
+            properties["skip_special_tokens"] = kwargs.pop("skip_special_tokens", False)
+            response = self.llm_runner.generate(
+                user_input,
+                **properties
+            )
+            self.llm_runner.set_message({
+                "type": "response",
+                "response": response
+            })
 
     def callback(self, data):
         action = data.get("action")
