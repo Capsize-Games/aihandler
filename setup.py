@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='aiengine',
-    version='1.8.9',
+    version='1.8.10',
     author='Capsize LLC',
     description="AI Engine",
     long_description=open("README.md", "r", encoding="utf-8").read(),
