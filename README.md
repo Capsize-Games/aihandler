@@ -19,4 +19,4 @@ pip install aihandler
 Examples coming soon, for now take a look at the following projects:
 
 - [AI Runner](https://github.com/Capsize-Games/airunner)
-- [Chat AI](https://github.com/Capsize-Games/airunner)
+- [Chat AI](https://github.com/Capsize-Games/chatai)
