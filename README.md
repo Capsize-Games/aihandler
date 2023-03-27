@@ -19,21 +19,25 @@ AI Handler is a work in progress. It powers two projects at the moment, but may 
 
 ## Pre-requisites
 
+System requirements
+
 - Python 3.10.8
 - pip 23.0.1
 - CUDA toolkit 11.7
 - CUDNN 8.6.0.163
+- Cuda capable GPU
+- 16gb+ ram
 
 Create a venv and activate it:
 
-Ubuntu
+**Ubuntu**
 
 ```
 python -m venv venv
 source venv/bin/activate
 ```
 
-Windows
+**Windows**
 
 ```
 python -m venv venv
@@ -43,6 +47,15 @@ venv\Scripts\activate
 Upgrade pip to latest
 
 `python.exe -m pip install --upgrade pip`
+
+### Diffusers and transformers
+
+Install modified versions of diffusers and transformers from these forks:
+
+- pip install git+https://github.com/w4ffl35/diffusers.git@ckpt_fix
+- pip install git+https://github.com/w4ffl35/transformers.git@tensor_fix
+
+The author of `aihandler` is also the author of those changes.
 
 ### Ubuntu 20.04+
 
