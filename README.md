@@ -1,4 +1,5 @@
 # AI Handler
+[![Upload Python Package](https://github.com/Capsize-Games/aihandler/actions/workflows/python-publish.yml/badge.svg)](https://github.com/Capsize-Games/aihandler/actions/workflows/python-publish.yml)
 
 This is a simple library which can be used to run AI models. It is a light wrapper around the huggingface API
 which gives you a queue, threading, a simple API, and the ability to run Stable Diffusion and LLMs seamlessly
