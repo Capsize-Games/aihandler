@@ -90,10 +90,3 @@ These are optional instructions for installing TensorRT and Deepspeed for Window
 1. Git clone Deepspeed 0.8.1
 2. Follow their instructions to build Deepspeed python wheel
 3. Install Deepspeed `pip install deepspeed-*.whl
-
-## Usage
-
-Examples coming soon, for now take a look at the following projects:
-
-- [AI Runner](https://github.com/Capsize-Games/airunner)
-- [Chat AI](https://github.com/Capsize-Games/chatai)
