@@ -1,16 +1,16 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='aiengine',
+    name='aihandler',
     version='1.8.10',
     author='Capsize LLC',
-    description="AI Engine",
+    description="AI Handler",
     long_description=open("README.md", "r", encoding="utf-8").read(),
     long_description_content_type="",
     keywords="",
     license="",
     author_email="contact@capsize.gg",
-    url="https://github.com/w4ffl35/aiengine",
+    url="https://github.com/w4ffl35/aihandler",
     package_dir={"": "src"},
     packages=find_packages("src"),
     include_package_data=True,

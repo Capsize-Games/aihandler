@@ -1,4 +1,4 @@
-# AI Engine
+# AI Handler
 
 This is a simple library which can be used to run AI models. It is a light wrapper around the huggingface API
 which gives you a queue, threading, a simple API, and the ability to run Stable Diffusion and LLMs seamlessly
@@ -6,12 +6,12 @@ from your local hardware.
 
 It can easily be extended and used to power interfaces or it can be run from the command line.
 
-AI Engine is a work in progress. It powers two projects at the moment, but may not be ready for general use.
+AI Handler is a work in progress. It powers two projects at the moment, but may not be ready for general use.
 
 ## Installation
 
 ```
-pip install aiengine
+pip install aihandler
 ```
 
 ## Usage
