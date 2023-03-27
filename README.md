@@ -1,5 +1,11 @@
 # AI Handler
 [![Upload Python Package](https://github.com/Capsize-Games/aihandler/actions/workflows/python-publish.yml/badge.svg)](https://github.com/Capsize-Games/aihandler/actions/workflows/python-publish.yml)
+![GitHub](https://img.shields.io/github/license/Capsize-Games/aihandler)
+![GitHub last commit](https://img.shields.io/github/last-commit/Capsize-Games/aihandler)
+![GitHub issues](https://img.shields.io/github/issues/Capsize-Games/aihandler)
+![GitHub closed issues](https://img.shields.io/github/issues-closed/Capsize-Games/aihandler)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/Capsize-Games/aihandler)
+![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/Capsize-Games/aihandler)
 
 This is a simple library which can be used to run AI models. It is a light wrapper around the huggingface API
 which gives you a queue, threading, a simple API, and the ability to run Stable Diffusion and LLMs seamlessly
