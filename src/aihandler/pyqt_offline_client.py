@@ -79,25 +79,7 @@ class OfflineClient(QtCore.QObject):
         self.do_start()
 
     def do_start(self):
-        self.init_runners()
         self.force_request_worker_reset()
-
-    def init_runners(self):
-        """
-        Set the runner signals (used to receive data from the runner)
-        :return:
-        """
-        for runner_class in self.runners:
-            runner = runner_class(
-                app=self.app,
-                tqdm_var=self.tqdm_var,
-                image_var=self.image_var,
-                message_var=self.message_var
-            )
-            if runner.__class__.__name__ == "LLMRunner":
-                self.llm_runner = runner
-            else:
-                self.sd_runner = runner
 
     def handle_response(self, response):
         """
@@ -144,35 +126,10 @@ class OfflineClient(QtCore.QObject):
             self.error_var
         )
 
-    def handle_llm_request(self, **kwargs):
-        if not self.llm_runner:
-            print("LLMRunner not initialized.")
-        data = kwargs.get("data", {})
-        req_type = kwargs["type"]
-        user_input = data.get("user_input", None)
-
-        if req_type == "chat":
-            self.llm_runner.generate_bot_response()
-        elif req_type == "action":
-            self.llm_runner.generate_reaction(user_input)
-        elif req_type == "generate_characters":
-            self.llm_runner.generate_character_prompt()
-        else:
-            properties = data["properties"]
-            properties["skip_special_tokens"] = kwargs.pop("skip_special_tokens", False)
-            response = self.llm_runner.generate(
-                user_input,
-                **properties
-            )
-            self.llm_runner.set_message({
-                "type": "response",
-                "response": response
-            })
-
     def callback(self, data):
         action = data.get("action")
         if action in ("llm"):
-            self.handle_llm_request(**data)
+            self.llm_request_handler(**data)
         else:
             self.handle_sd_request(action, data)
 

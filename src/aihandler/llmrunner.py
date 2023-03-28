@@ -163,6 +163,7 @@ class LLMRunner(BaseRunner):
                     local_files_only=local_files_only,
                     device_map=self.device_map,
                     load_in_8bit=self.load_in_8bit,
+                    llm_int8_enable_fp32_cpu_offload=True,
                 )
                 self.model.eval()
             self.tokenizer = tokenizer_class.from_pretrained(
@@ -181,18 +182,6 @@ class LLMRunner(BaseRunner):
     @property
     def device(self):
         return "cuda" if torch.cuda.is_available() else "cpu"
-
-    def load_summarizer(self):
-        self.load_model("./local/flan-t5-large-samsum", "summarize")
-
-    def generate_bot_response(self):
-        self.conversation.generate_bot_response()
-
-    def generate_reaction(self, user_input):
-        self.conversation.generate_reaction(user_input)
-
-    def generate_character_prompt(self):
-        self.conversation.do_generate_characters()
 
     def generate(self, prompt, **properties):
         if "data" in properties:
