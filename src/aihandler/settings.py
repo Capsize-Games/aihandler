@@ -248,7 +248,6 @@ MAX_SEED = 4294967295
 CHUNK_SIZE = 1024
 DEFAULT_PORT=50006
 DEFAULT_HOST="localhost"
-AIRUNNER_VERSION="1.8.10"
 # get platform
 try:
     HOME=os.environ['HOME']
