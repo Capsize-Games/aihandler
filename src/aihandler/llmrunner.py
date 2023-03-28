@@ -96,7 +96,6 @@ class LLMRunner(BaseRunner):
         self.model_class = MODELS[self.current_model]["class"]
         self.tokenizer_class = MODELS[self.current_model]["tokenizer"]
         self.is_model_loading = False
-        threading.Thread(target=self.load_model, args=(self.model_name,)).start()
         # self.app.message_signal.emit("initialized")
 
     def do_set_seed(self, seed=None):
