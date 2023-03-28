@@ -1,7 +1,9 @@
 from PyQt6.QtCore import QObject, pyqtSignal
+
+from aihandler.logger import logger
 from aihandler.qtvar import TQDMVar, ImageVar
 from aihandler.settings_manager import SettingsManager
-from aihandler.settings import AIRUNNER_ENVIRONMENT
+from aihandler.settings import AIRUNNER_ENVIRONMENT, LOG_LEVEL
 
 
 class BaseRunner(QObject):
@@ -14,6 +16,7 @@ class BaseRunner(QObject):
 
     def __init__(self, *args, **kwargs):
         super().__init__()
+        logger.set_level(LOG_LEVEL)
         self.app = kwargs.get("app", None)
         self.settings_manager = SettingsManager(app=self.app)
         self._tqdm_var: TQDMVar = kwargs.get("tqdm_var", None)

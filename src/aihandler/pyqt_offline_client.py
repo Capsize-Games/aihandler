@@ -5,6 +5,7 @@ import time
 from PyQt6 import QtCore
 from PyQt6.QtCore import QThread
 from aihandler.qtvar import BooleanVar
+from settings import LOG_LEVEL
 
 
 class OfflineClient(QtCore.QObject):
@@ -252,6 +253,7 @@ class ResponseWorker(QtCore.QObject):
     running = False
 
     def __init__(self, parent=None, client=None):
+        logger.set_level(LOG_LEVEL)
         self.client = client
         super(self.__class__, self).__init__(parent)
 
