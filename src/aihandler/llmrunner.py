@@ -2,20 +2,18 @@ import gc
 import os
 import threading
 import time
-
 import numpy as np
 import random
 import torch
 from aihandler.base_runner import BaseRunner
 from aihandler.settings import TEXT_MODELS as MODELS
 from aihandler.logger import logger
-
+from aihandler.settings import LOG_LEVEL
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "0"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
 os.environ["BITSANDBYTES_NOWELCOME"] = "1"
-import settings as settings
-logger.set_level(settings.LOG_LEVEL)
+logger.set_level(LOG_LEVEL)
 
 
 class LLMRunner(BaseRunner):

@@ -5,7 +5,7 @@ import time
 from PyQt6 import QtCore
 from PyQt6.QtCore import QThread
 from aihandler.qtvar import BooleanVar
-from settings import LOG_LEVEL
+from aihandler.settings import LOG_LEVEL
 
 
 class OfflineClient(QtCore.QObject):
