@@ -12,6 +12,8 @@ This is a simple framework for running AI models. It makes use of the huggingfac
 which gives you a queue, threading, a simple API, and the ability to run Stable Diffusion and LLMs seamlessly
 from your local hardware.
 
+This is not intended to be used as a standalone application.
+
 It can easily be extended and used to power interfaces or it can be run from the command line.
 
 AI Handler is a work in progress. It powers two projects at the moment, but may not be ready for general use.
@@ -53,8 +55,10 @@ Upgrade pip to latest
 
 Install modified versions of diffusers and transformers from these forks:
 
-- pip install git+https://github.com/w4ffl35/diffusers.git@ckpt_fix
-- pip install git+https://github.com/w4ffl35/transformers.git@tensor_fix
+```
+pip install git+https://github.com/w4ffl35/diffusers.git@ckpt_fix
+pip install git+https://github.com/w4ffl35/transformers.git@tensor_fix
+```
 
 The author of `aihandler` is also the author of those changes.
 
@@ -104,3 +108,10 @@ These are optional instructions for installing TensorRT and Deepspeed for Window
 1. Git clone Deepspeed 0.8.1
 2. Follow their instructions to build Deepspeed python wheel
 3. Install Deepspeed `pip install deepspeed-*.whl
+
+---
+
+## Environment variables
+
+- `AIRUNNER_ENVIRONMENT` - `dev` or `prod`. Defaults to `dev`. This controls the LOG_LEVEL
+- `LOG_LEVEL` - `FATAL` for production, `DEBUG` for development. Override this to force a log level
