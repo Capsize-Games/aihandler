@@ -2,20 +2,18 @@ import gc
 import os
 import threading
 import time
-
 import numpy as np
 import random
 import torch
 from aihandler.base_runner import BaseRunner
 from aihandler.settings import TEXT_MODELS as MODELS
 from aihandler.logger import logger
-
+from aihandler.settings import LOG_LEVEL
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "0"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
 os.environ["BITSANDBYTES_NOWELCOME"] = "1"
-import settings as settings
-logger.set_level(settings.LOG_LEVEL)
+logger.set_level(LOG_LEVEL)
 
 
 class LLMRunner(BaseRunner):
@@ -98,7 +96,6 @@ class LLMRunner(BaseRunner):
         self.model_class = MODELS[self.current_model]["class"]
         self.tokenizer_class = MODELS[self.current_model]["tokenizer"]
         self.is_model_loading = False
-        threading.Thread(target=self.load_model, args=(self.model_name,)).start()
         # self.app.message_signal.emit("initialized")
 
     def do_set_seed(self, seed=None):
@@ -165,6 +162,7 @@ class LLMRunner(BaseRunner):
                     local_files_only=local_files_only,
                     device_map=self.device_map,
                     load_in_8bit=self.load_in_8bit,
+                    llm_int8_enable_fp32_cpu_offload=True,
                 )
                 self.model.eval()
             self.tokenizer = tokenizer_class.from_pretrained(
@@ -183,18 +181,6 @@ class LLMRunner(BaseRunner):
     @property
     def device(self):
         return "cuda" if torch.cuda.is_available() else "cpu"
-
-    def load_summarizer(self):
-        self.load_model("./local/flan-t5-large-samsum", "summarize")
-
-    def generate_bot_response(self):
-        self.conversation.generate_bot_response()
-
-    def generate_reaction(self, user_input):
-        self.conversation.generate_reaction(user_input)
-
-    def generate_character_prompt(self):
-        self.conversation.do_generate_characters()
 
     def generate(self, prompt, **properties):
         if "data" in properties:

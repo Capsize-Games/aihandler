@@ -1,5 +1,6 @@
 # AI Handler
 [![Upload Python Package](https://github.com/Capsize-Games/aihandler/actions/workflows/python-publish.yml/badge.svg)](https://github.com/Capsize-Games/aihandler/actions/workflows/python-publish.yml)
+[![Discord](https://img.shields.io/discord/839511291466219541?color=5865F2&logo=discord&logoColor=white)](https://discord.gg/PUVDDCJ7gz)
 ![GitHub](https://img.shields.io/github/license/Capsize-Games/aihandler)
 ![GitHub last commit](https://img.shields.io/github/last-commit/Capsize-Games/aihandler)
 ![GitHub issues](https://img.shields.io/github/issues/Capsize-Games/aihandler)
@@ -7,9 +8,11 @@
 ![GitHub pull requests](https://img.shields.io/github/issues-pr/Capsize-Games/aihandler)
 ![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/Capsize-Games/aihandler)
 
-This is a simple library which can be used to run AI models. It is a light wrapper around the huggingface API
+This is a simple framework for running AI models. It makes use of the huggingface API
 which gives you a queue, threading, a simple API, and the ability to run Stable Diffusion and LLMs seamlessly
 from your local hardware.
+
+This is not intended to be used as a standalone application.
 
 It can easily be extended and used to power interfaces or it can be run from the command line.
 
@@ -52,8 +55,10 @@ Upgrade pip to latest
 
 Install modified versions of diffusers and transformers from these forks:
 
-- pip install git+https://github.com/w4ffl35/diffusers.git@ckpt_fix
-- pip install git+https://github.com/w4ffl35/transformers.git@tensor_fix
+```
+pip install git+https://github.com/w4ffl35/diffusers.git@ckpt_fix
+pip install git+https://github.com/w4ffl35/transformers.git@tensor_fix
+```
 
 The author of `aihandler` is also the author of those changes.
 
@@ -103,3 +108,10 @@ These are optional instructions for installing TensorRT and Deepspeed for Window
 1. Git clone Deepspeed 0.8.1
 2. Follow their instructions to build Deepspeed python wheel
 3. Install Deepspeed `pip install deepspeed-*.whl
+
+---
+
+## Environment variables
+
+- `AIRUNNER_ENVIRONMENT` - `dev` or `prod`. Defaults to `dev`. This controls the LOG_LEVEL
+- `LOG_LEVEL` - `FATAL` for production, `DEBUG` for development. Override this to force a log level

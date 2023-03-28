@@ -1,3 +1,4 @@
+import logging
 import os
 import platform
 
@@ -247,7 +248,6 @@ MAX_SEED = 4294967295
 CHUNK_SIZE = 1024
 DEFAULT_PORT=50006
 DEFAULT_HOST="localhost"
-AIRUNNER_VERSION="1.8.10"
 # get platform
 try:
     HOME=os.environ['HOME']
@@ -299,8 +299,9 @@ FONT_STYLES = {
     "normal": ("TkDefaultFont", 10, "normal"),
     "subtext": ("TkDefaultFont", 8, "normal"),
 }
-AIRUNNER_ENVIRONMENT = os.environ.get("AIRUNNER_ENVIRONMENT", "prod")  # dev or prod
+AIRUNNER_ENVIRONMENT = os.environ.get("AIRUNNER_ENVIRONMENT", "dev")  # dev or prod
 AIRUNNER_OS = platform.system()  # Windows or linux
 LARGEST_WORKING_SIZE=2048
 SMALLEST_WORKING_SIZE=8
 BRUSH_INC_SIZE=8
+LOG_LEVEL = logging.FATAL if AIRUNNER_ENVIRONMENT == "prod" else logging.DEBUG

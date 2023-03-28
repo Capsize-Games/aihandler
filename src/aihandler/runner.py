@@ -9,7 +9,10 @@ from aihandler.qtvar import ImageVar
 import traceback
 import torch
 import io
+from aihandler.settings import LOG_LEVEL
 from aihandler.logger import logger
+import logging
+logging.disable(LOG_LEVEL)
 from PIL import Image
 from controlnet_aux import HEDdetector, MLSDdetector, OpenposeDetector
 
@@ -159,6 +162,7 @@ class SDRunner(BaseRunner):
         if self.is_ckpt_model or self.is_safetensors:
             # skip scheduler for ckpt models
             return None
+        # set logging level to fatal for all loggers
         import diffusers
         scheduler_class = getattr(diffusers, self.schedulers[self.scheduler_name])
         kwargs = {

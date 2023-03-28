@@ -4,6 +4,7 @@ import queue
 import threading
 import time
 import base64
+from settings import LOG_LEVEL
 from io import BytesIO
 from PIL import Image
 from logger import logger
@@ -244,7 +245,7 @@ class ResponseWorker:
     client: OfflineClient
 
     def __init__(self, parent=None, client=None):
-        logger.set_level(logger.DEBUG)
+        logger.set_level(LOG_LEVEL)
         self.client = client
 
     def startWork(self):
