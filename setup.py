@@ -47,7 +47,7 @@ if platform.system() == "Linux":
 
 setup(
     name="aihandler",
-    version="1.8.13",
+    version="1.8.14",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
