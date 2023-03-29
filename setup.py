@@ -3,6 +3,7 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
+    "lightning==1.9.0",
     "accelerate==0.18.0",
     "bitsandbytes==0.37.0",
     "bitsandbytes-cuda117==0.26.0.post2",
