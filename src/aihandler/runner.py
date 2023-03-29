@@ -463,7 +463,7 @@ class SDRunner(BaseRunner):
                 pipeline = self.load_controlnet_from_ckpt(pipeline)
         except Exception as e:
             print("Something went wrong loading the model file", e)
-            self.set_message("Unable to load ckpt file", error=True)
+            self.error_handler("Unable to load ckpt file")
             raise e
         # to half
         # determine which data type to move the model to
@@ -1184,7 +1184,7 @@ class SDRunner(BaseRunner):
                 self._initialize()
                 return self.generator_sample(data, image_var, error_var)
             elif not self.has_internet_connection:
-                self.set_message("Please check your internet connection and try again.", error=True)
+                self.error_handler("Please check your internet connection and try again.")
             self.scheduler_name = None
             self._current_model = None
             self.local_files_only = True
