@@ -115,3 +115,13 @@ These are optional instructions for installing TensorRT and Deepspeed for Window
 
 - `AIRUNNER_ENVIRONMENT` - `dev` or `prod`. Defaults to `dev`. This controls the LOG_LEVEL
 - `LOG_LEVEL` - `FATAL` for production, `DEBUG` for development. Override this to force a log level
+
+### Huggingface variables
+
+#### Offline mode
+
+These environment variables keep you offline until you need to download a model. This prevents unwanted online access and speeds up usage of huggingface libraries.
+
+- `DISABLE_TELEMETRY` Keep this set to 1 at all times. Huggingface collects minimal telemetry when downloading a model from their repository but this will keep it disabled. [See more info in this github thread](https://github.com/huggingface/diffusers/pull/1833#issuecomment-1368484414)
+- `HF_HUB_OFFLINE` When loading a diffusers model, huggingface libraries will attempt to download an updated cache before running the model. This prevents that check from happening (long with a boolean passed to `load_pretrained` see the runner.py file for examples)
+- `TRANSFORMERS_OFFLINE` Similar to `HF_HUB_OFFLINE` but for transformers models
