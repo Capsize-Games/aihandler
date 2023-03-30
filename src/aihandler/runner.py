@@ -455,9 +455,10 @@ class SDRunner(BaseRunner):
         try:
             pipeline = load_pipeline_from_original_stable_diffusion_ckpt(
                 checkpoint_path=self.model,
+                original_config_file={"v1": "v1.yaml", "v2": "v2.yaml"},
                 scheduler_type=schedulers[self.scheduler_name],
                 device=self.device,
-                from_safetensors=self.is_safetensors
+                from_safetensors=self.is_safetensors,
             )
             if self.is_controlnet:
                 pipeline = self.load_controlnet_from_ckpt(pipeline)
