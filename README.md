@@ -20,6 +20,8 @@ AI Handler is a work in progress. It powers two projects at the moment, but may 
 
 ## Installation
 
+This is a work in progress.
+
 ## Pre-requisites
 
 System requirements
@@ -30,37 +32,6 @@ System requirements
 - CUDNN 8.6.0.163
 - Cuda capable GPU
 - 16gb+ ram
-
-Create a venv and activate it:
-
-**Ubuntu**
-
-```
-python -m venv venv
-source venv/bin/activate
-```
-
-**Windows**
-
-```
-python -m venv venv
-venv\Scripts\activate
-```
-
-Upgrade pip to latest
-
-`python.exe -m pip install --upgrade pip`
-
-### Diffusers and transformers
-
-Install modified versions of diffusers and transformers from these forks:
-
-```
-pip install git+https://github.com/w4ffl35/diffusers.git@ckpt_fix
-pip install git+https://github.com/w4ffl35/transformers.git@tensor_fix
-```
-
-The author of `aihandler` is also the author of those changes.
 
 ### Ubuntu 20.04+
 
@@ -73,12 +44,8 @@ pip install aihandler
 
 ### Windows 10+
 
-First install torch
-
 ```
-pip install torch==1.13.1 \
- torchvision==0.14.1 \
- torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu117
+pip install torch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu117
 pip install https://github.com/w4ffl35/diffusers/archive/refs/tags/v0.14.0.ckpt_fix.tar.gz
 pip install https://github.com/w4ffl35/transformers/archive/refs/tags/tensor_fix-v1.0.2.tar.gz
 pip install https://github.com/acpopescu/bitsandbytes/releases/download/v0.37.2-win.0/bitsandbytes-0.37.2-py3-none-any.whl

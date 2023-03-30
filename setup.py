@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
-    "pyinstaller",
+    # ubuntu requirements:
     "torch==1.13.1",
     "torchvision==0.14.1",
     "torchaudio==0.13.1",
@@ -16,7 +16,7 @@ install_requires = [
     "bitsandbytes==0.36.0.post2",
     "ninja==1.11.1",
     "JIT==0.2.7",
-
+    # cross platform requirements (see README for windows instructions):
     "lightning==1.9.0",
     "accelerate==0.18.0",
     "controlnet_aux",
