@@ -64,8 +64,16 @@ The author of `aihandler` is also the author of those changes.
 
 ### Ubuntu 20.04+
 
+Install required libraries
 ```
-pip install aihandler
+pip install torch==1.13.1 \
+ torchvision==0.14.1 \
+ torchaudio==0.13.1 \
+ nvidia-pyindex \
+ nvidia-tensorrt==8.4.3.1 \
+ triton==2.0.0.dev20221202 \
+ deepspeed==0.8.0 \
+ aihandler
 ```
 
 ### Windows 10+
@@ -73,12 +81,11 @@ pip install aihandler
 First install torch
 
 ```
-pip install torch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu117
+pip install torch==1.13.1 \
+ torchvision==0.14.1 \
+ torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu117
+pip install aihandler
 ```
-
-Now install the rest
-
-Install this repo `pip install aihandler`
 
 ---
 
