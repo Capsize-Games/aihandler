@@ -5,6 +5,7 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
+    "omegaconf",
     "lightning==1.9.0",
     "accelerate==0.18.0",
     "controlnet_aux",
