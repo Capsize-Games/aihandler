@@ -32,22 +32,13 @@ install_requires = [
     "sympy==1.11.1",
     "typing_extensions==4.5.0",
     "urllib3==1.26.15",
+    "https://github.com/w4ffl35/diffusers/archive/refs/tags/v0.14.0.ckpt_fix.tar.gz",
+    "https://github.com/w4ffl35/transformers/archive/refs/tags/tensor_fix-v1.0.2.tar.gz",
 ]
-
-if platform.system() == "Linux":
-    install_requires = [
-        "torch==1.13.1",
-        "torchvision==0.14.1",
-        "torchaudio==0.13.1",
-        "nvidia-pyindex",
-        "nvidia-tensorrt==8.4.3.1",
-        "triton==2.0.0.dev20221202",
-        "deepspeed==0.8.0",
-    ] + install_requires
 
 setup(
     name="aihandler",
-    version="1.8.15",
+    version="1.8.14",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
