@@ -5,8 +5,6 @@ from setuptools import setup, find_packages
 install_requires = [
     "lightning==1.9.0",
     "accelerate==0.18.0",
-    "bitsandbytes==0.37.0",
-    "bitsandbytes-cuda117==0.26.0.post2",
     "controlnet_aux",
     "huggingface-hub==0.13.3",
     "numpy==1.23.5",
@@ -34,20 +32,13 @@ install_requires = [
     "urllib3==1.26.15",
 ]
 
-if platform.system() == "Linux":
-    install_requires = [
-        "torch==1.13.1",
-        "torchvision==0.14.1",
-        "torchaudio==0.13.1",
-        "nvidia-pyindex",
-        "nvidia-tensorrt==8.4.3.1",
-        "triton==2.0.0.dev20221202",
-        "deepspeed==0.8.0",
-    ] + install_requires
+# List all files in this file's directory:
+import os
+import sys
 
 setup(
     name="aihandler",
-    version="1.8.14",
+    version="1.8.15",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
