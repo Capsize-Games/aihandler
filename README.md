@@ -26,6 +26,7 @@ This is a work in progress.
 
 System requirements
 
+- Windows 10+
 - Python 3.10.8
 - pip 23.0.1
 - CUDA toolkit 11.7
@@ -33,36 +34,13 @@ System requirements
 - Cuda capable GPU
 - 16gb+ ram
 
-### Ubuntu 20.04+
-
-Install required libraries
-```
-pip install https://github.com/w4ffl35/diffusers/archive/refs/tags/v0.14.0.ckpt_fix.tar.gz
-pip install https://github.com/w4ffl35/transformers/archive/refs/tags/tensor_fix-v1.0.2.tar.gz
-pip install aihandler
-```
-
-### Windows 10+
-
 ```
 pip install torch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu117
 pip install https://github.com/w4ffl35/diffusers/archive/refs/tags/v0.14.0.ckpt_fix.tar.gz
 pip install https://github.com/w4ffl35/transformers/archive/refs/tags/tensor_fix-v1.0.2.tar.gz
 pip install https://github.com/acpopescu/bitsandbytes/releases/download/v0.37.2-win.0/bitsandbytes-0.37.2-py3-none-any.whl
-pip install aihandler
+pip install aihandlerwindows
 ```
-
----
-
-Currently bitsandbytes on windows is bitsandbroken. Here's how you can hack around it:
-
-1. `git clone https://github.com/DeXtmL/bitsandbytes-win-prebuilt`
-2. `git clone https://github.com/james-things/bitsandbytes-prebuilt-all_arch`
-3. `copy bitsandbytes-win-prebuilt/*.dll <your_venv_path>/site-packages/bitsandbytes`
-4. `copy bitsandbytes-prebuilt-all_arch/*.dll <your_venv_path>/site-packages/bitsandbytes`
-5. Edit `main.py` in `<your_venv_path>/site-packages/bitsandbytes/cuda_setup` 
-6. Find and replace all `ct.cdll.LoadLibrary(binary_path)` with `ct.cdll.LoadLibrary(str(binary_path))`
-7. Find and replace all `if not torch.cuda.is_available(): return 'libsbitsandbytes_cpu.so', None, None, None, None` with `if torch.cuda.is_available(): return 'libbitsandbytes_cudaall.dll', None, None, None, None`
 
 #### Optional
 
