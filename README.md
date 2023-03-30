@@ -66,14 +66,9 @@ The author of `aihandler` is also the author of those changes.
 
 Install required libraries
 ```
-pip install torch==1.13.1 \
- torchvision==0.14.1 \
- torchaudio==0.13.1 \
- nvidia-pyindex \
- nvidia-tensorrt==8.4.3.1 \
- triton==2.0.0.dev20221202 \
- deepspeed==0.8.0 \
- aihandler
+pip install https://github.com/w4ffl35/diffusers/archive/refs/tags/v0.14.0.ckpt_fix.tar.gz
+pip install https://github.com/w4ffl35/transformers/archive/refs/tags/tensor_fix-v1.0.2.tar.gz
+pip install aihandler
 ```
 
 ### Windows 10+
@@ -84,6 +79,9 @@ First install torch
 pip install torch==1.13.1 \
  torchvision==0.14.1 \
  torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu117
+pip install https://github.com/w4ffl35/diffusers/archive/refs/tags/v0.14.0.ckpt_fix.tar.gz
+pip install https://github.com/w4ffl35/transformers/archive/refs/tags/tensor_fix-v1.0.2.tar.gz
+pip install https://github.com/acpopescu/bitsandbytes/releases/download/v0.37.2-win.0/bitsandbytes-0.37.2-py3-none-any.whl
 pip install aihandler
 ```
 
