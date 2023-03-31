@@ -1,9 +1,10 @@
+import os
+import sys
 import platform
 from setuptools import setup, find_packages
 
 
 install_requires = [
-    # ubuntu requirements:
     "torch==1.13.1",
     "torchvision==0.14.1",
     "torchaudio==0.13.1",
@@ -16,7 +17,6 @@ install_requires = [
     "bitsandbytes==0.36.0.post2",
     "ninja==1.11.1",
     "JIT==0.2.7",
-    # cross platform requirements (see README for windows instructions):
     "lightning==1.9.0",
     "accelerate==0.18.0",
     "controlnet_aux",
@@ -46,13 +46,10 @@ install_requires = [
     "urllib3==1.26.15",
 ]
 
-# List all files in this file's directory:
-import os
-import sys
 
 setup(
     name="aihandler",
-    version="1.8.16",
+    version="1.8.17",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
