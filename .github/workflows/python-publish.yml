@@ -10,7 +10,7 @@ name: Upload Standard Python Package
 
 on:
   release:
-    types: [published]
+    types: [created]
     branches:
       - master
   workflow_dispatch:
