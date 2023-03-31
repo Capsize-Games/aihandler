@@ -5,18 +5,7 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
-    "torch==1.13.1",
-    "torchvision==0.14.1",
-    "torchaudio==0.13.1",
-    "nvidia-pyindex",
-    "nvidia-tensorrt==8.4.3.1",
-    "triton==2.0.0.dev20221202",
-    "deepspeed==0.8.0",
-    "einops==0.6.0",
-    "accelerate==0.18.0",
-    "bitsandbytes==0.36.0.post2",
-    "ninja==1.11.1",
-    "JIT==0.2.7",
+    "omegaconf",
     "lightning==1.9.0",
     "accelerate==0.18.0",
     "controlnet_aux",
@@ -48,7 +37,7 @@ install_requires = [
 
 
 setup(
-    name="aihandler",
+    name="aihandlerwindows",
     version="1.8.17",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
@@ -57,7 +46,7 @@ setup(
     keywords="ai, chatbot, chat, ai",
     license="AGPL-3.0",
     author_email="contact@capsize.gg",
-    url="https://github.com/w4ffl35/aihandler",
+    url="https://github.com/Capsize-Games/aihandler@develop-windows",
     package_dir={"": "src"},
     packages=find_packages("src"),
     include_package_data=True,
