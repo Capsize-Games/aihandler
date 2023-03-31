@@ -37,7 +37,7 @@ install_requires = [
 
 
 setup(
-    name="aihandlerwindows",
+    name="aihandler",
     version="1.8.18",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
