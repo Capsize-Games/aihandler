@@ -38,7 +38,7 @@ install_requires = [
 
 setup(
     name="aihandlerwindows",
-    version="1.8.17",
+    version="1.8.18",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
