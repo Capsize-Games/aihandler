@@ -10,7 +10,7 @@ name: Upload Windows Python Package
 
 on:
   release:
-    types: [published]
+    types: [created]
     branches:
       - develop-windows
   workflow_dispatch:
