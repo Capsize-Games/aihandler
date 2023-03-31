@@ -12,8 +12,7 @@ on:
   release:
     types: [published]
     branches:
-      - master
-  workflow_dispatch:
+      - develop-windows
 
 permissions:
   contents: read
@@ -24,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3g
+    - uses: actions/checkout@v3
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
