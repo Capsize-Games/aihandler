@@ -34,6 +34,7 @@ System requirements
 - Cuda capable GPU
 - 16gb+ ram
 
+Install
 ```
 pip install torch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 --index-url https://download.pytorch.org/whl/cu117
 pip install https://github.com/w4ffl35/diffusers/archive/refs/tags/v0.14.0.ckpt_fix.tar.gz
