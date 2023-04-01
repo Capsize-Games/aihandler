@@ -201,16 +201,22 @@ class LLMRunner(BaseRunner):
 
         properties = self.parse_properties(properties)
         response = [""]
+        outputs = None
         self.do_set_seed(properties.get("seed"))
         # try:
         inputs = self.tokenizer(prompt, return_tensors="pt").input_ids.to("cuda")
-        outputs = self.model.generate(inputs, **properties)
-        response = self.tokenizer.batch_decode(outputs, skip_special_tokens=skip_special_tokens)[0]
-        # except Exception as e:
-        #     if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
-        #         self.error_handler("CUDA out of memory. Try to adjust your settings or using a smaller model.")
-        #         return
-        #     raise e
+        try:
+            outputs = self.model.generate(inputs, **properties)
+        except RuntimeError:
+            self.error_handler("Something went wrong during generation")
+        except Exception as e:
+            if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
+                self.error_handler("CUDA out of memory. Try to adjust your settings or using a smaller model.")
+                return
+            raise e
+        if outputs is not None:
+            response = self.tokenizer.batch_decode(outputs, skip_special_tokens=skip_special_tokens)[0]
+            return response
         return response
 
     def parse_properties(self, properties: dict):
