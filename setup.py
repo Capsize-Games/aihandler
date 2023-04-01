@@ -33,12 +33,14 @@ install_requires = [
     "sympy==1.11.1",
     "typing_extensions==4.5.0",
     "urllib3==1.26.15",
+    "diffusers=0.14.0"
+    "transformers==4.27.4"
 ]
 
 
 setup(
-    name="aihandlerwindows",
-    version="1.8.19",
+    name="aihandler",
+    version="1.8.20",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
