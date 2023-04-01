@@ -5,6 +5,10 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
+    "torch==1.13.1",
+    "torchvision==0.14.1",
+    "torchaudio==0.13.1",
+    "bitsandbytes==0.37.0",
     "omegaconf",
     "lightning==1.9.0",
     "accelerate==0.18.0",
