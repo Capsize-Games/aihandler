@@ -5,6 +5,10 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
+    "torch==1.13.1",
+    "torchvision==0.14.1",
+    "torchaudio==0.13.1",
+    "bitsandbytes==0.37.0",
     "omegaconf",
     "lightning==1.9.0",
     "accelerate==0.18.0",
@@ -33,12 +37,14 @@ install_requires = [
     "sympy==1.11.1",
     "typing_extensions==4.5.0",
     "urllib3==1.26.15",
+    "diffusers=0.14.0"
+    "transformers==4.27.4"
 ]
 
 
 setup(
     name="aihandler",
-    version="1.8.19",
+    version="1.8.20",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
