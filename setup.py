@@ -49,7 +49,7 @@ install_requires = [
 
 setup(
     name="aihandler",
-    version="1.8.20",
+    version="1.8.21",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
