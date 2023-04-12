@@ -90,6 +90,8 @@ class SDRunner(BaseRunner):
     _settings = None
     _action = None
     do_change_scheduler = False
+    embeds_loaded = False
+    controlnet_type = "canny"
 
     @property
     def do_mega_scale(self):
@@ -358,6 +360,33 @@ class SDRunner(BaseRunner):
     def device(self):
         return "cuda" if self.cuda_is_available else "cpu"
 
+    @property
+    def controlnet_model(self):
+        if self.controlnet_type == "canny":
+            return "lllyasviel/sd-controlnet-canny"
+        elif self.controlnet_type == "depth":
+            return "fusing/stable-diffusion-v1-5-controlnet-depth"
+        elif self.controlnet_type == "hed":
+            return "fusing/stable-diffusion-v1-5-controlnet-hed"
+        elif self.controlnet_type == "mlsd":
+            return "fusing/stable-diffusion-v1-5-controlnet-mlsd"
+        elif self.controlnet_type == "normal":
+            return "fusing/stable-diffusion-v1-5-controlnet-normal"
+        elif self.controlnet_type == "scribble":
+            return "fusing/stable-diffusion-v1-5-controlnet-scribble"
+        elif self.controlnet_type == "segmentation":
+            return "fusing/stable-diffusion-v1-5-controlnet-seg"
+        elif self.controlnet_type == "openpose":
+            return "fusing/stable-diffusion-v1-5-controlnet-openpose"
+
+    @property
+    def has_internet_connection(self):
+        try:
+            response = requests.get('https://huggingface.co/')
+            return True
+        except requests.ConnectionError:
+            return False
+
     def _clear_memory(self):
         torch.cuda.empty_cache()
         gc.collect()
@@ -396,27 +425,6 @@ class SDRunner(BaseRunner):
             pipeline.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
             pipeline.enable_model_cpu_offload()
         return pipeline
-
-    controlnet_type = "canny"
-
-    @property
-    def controlnet_model(self):
-        if self.controlnet_type == "canny":
-            return "lllyasviel/sd-controlnet-canny"
-        elif self.controlnet_type == "depth":
-            return "fusing/stable-diffusion-v1-5-controlnet-depth"
-        elif self.controlnet_type == "hed":
-            return "fusing/stable-diffusion-v1-5-controlnet-hed"
-        elif self.controlnet_type == "mlsd":
-            return "fusing/stable-diffusion-v1-5-controlnet-mlsd"
-        elif self.controlnet_type == "normal":
-            return "fusing/stable-diffusion-v1-5-controlnet-normal"
-        elif self.controlnet_type == "scribble":
-            return "fusing/stable-diffusion-v1-5-controlnet-scribble"
-        elif self.controlnet_type == "segmentation":
-            return "fusing/stable-diffusion-v1-5-controlnet-seg"
-        elif self.controlnet_type == "openpose":
-            return "fusing/stable-diffusion-v1-5-controlnet-openpose"
 
     def load_controlnet(self):
         from diffusers import ControlNetModel
@@ -528,7 +536,6 @@ class SDRunner(BaseRunner):
 
         self._apply_memory_efficient_settings()
 
-    embeds_loaded = False
     def load_learned_embed_in_clip(self, learned_embeds_path):
         if self.embeds_loaded:
             return
@@ -1125,14 +1132,6 @@ class SDRunner(BaseRunner):
         image = (image * 255).astype(np.uint8)
         image = Image.fromarray(image)
         return image
-
-    @property
-    def has_internet_connection(self):
-        try:
-            response = requests.get('https://huggingface.co/')
-            return True
-        except requests.ConnectionError:
-            return False
 
     def generator_sample(
         self,
