@@ -42,7 +42,7 @@ install_requires = [
     "sympy==1.11.1",
     "typing_extensions==4.5.0",
     "urllib3==1.26.15",
-    "diffusers==0.14.0",
+    "diffusers==0.15.0",
     "transformers==4.27.4"
 ]
 

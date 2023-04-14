@@ -203,6 +203,12 @@ MODELS = {
             "path": "lambdalabs/sd-image-variations-diffusers",
             "branch": "v2.0",
         }
+    },
+    "txt2vid":  {
+        "damo-vilab": {
+            "path": "damo-vilab/text-to-video-ms-1.7b",
+            "branch": "fp16",
+        }
     }
 }
 TEXT_MODELS = {
