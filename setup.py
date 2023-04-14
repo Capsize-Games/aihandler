@@ -43,7 +43,8 @@ install_requires = [
     "typing_extensions==4.5.0",
     "urllib3==1.26.15",
     "diffusers==0.15.0",
-    "transformers==4.27.4"
+    "transformers==4.27.4",
+    "compel==1.1.3",
 ]
 
 
