@@ -870,6 +870,7 @@ class SDRunner(BaseRunner):
                 negative_prompt_embeds=negative_prompt_embeds,
                 guidance_scale=self.guidance_scale,
                 num_inference_steps=self.num_inference_steps,
+                num_frames=self.batch_size,
                 callback=self.callback,
             )
         else:
@@ -1155,7 +1156,11 @@ class SDRunner(BaseRunner):
             self._clear_memory()
 
         self._apply_memory_efficient_settings()
-        for n in range(self.batch_size):
+        if self.is_txt2vid:
+            total_to_generate = 1
+        else:
+            total_to_generate = self.batch_size
+        for n in range(total_to_generate):
             image, nsfw_content_detected = self._sample_diffusers_model(data)
             self.image_handler(image, data, nsfw_content_detected)
             self.seed = self.seed + 1
