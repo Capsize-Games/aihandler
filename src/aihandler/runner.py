@@ -15,6 +15,7 @@ import logging
 logging.disable(LOG_LEVEL)
 from PIL import Image
 from controlnet_aux import HEDdetector, MLSDdetector, OpenposeDetector
+from compel import Compel
 
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
@@ -808,6 +809,8 @@ class SDRunner(BaseRunner):
 
             output = self.call_pipe(**kwargs)
         except Exception as e:
+            logger.warning("something went wrong")
+            logger.error(e)
             if "`flshattF` is not supported because" in str(e):
                 # try again
                 logger.info("Disabling xformers and trying again")
@@ -856,19 +859,24 @@ class SDRunner(BaseRunner):
         :param kwargs:
         :return:
         """
+        compel_proc = Compel(tokenizer=self.pipe.tokenizer, text_encoder=self.pipe.text_encoder)
+        prompt_embeds = compel_proc(self.prompt)
+        negative_prompt_embeds = compel_proc(self.negative_prompt) if self.negative_prompt else None
+
         if self.is_txt2vid:
             return self.pipe(
-                self.prompt,
-                negative_prompt=self.negative_prompt,
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
                 guidance_scale=self.guidance_scale,
                 num_inference_steps=self.num_inference_steps,
                 callback=self.callback,
             )
         else:
-            kwargs = self.call_pipe_extension(**kwargs)
+            print("CALLING PIPE ", self.prompt)
+            #kwargs = self.call_pipe_extension(**kwargs)
             return self.pipe(
-                self.prompt,
-                negative_prompt=self.negative_prompt,
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
                 guidance_scale=self.guidance_scale,
                 num_inference_steps=self.num_inference_steps,
                 num_images_per_prompt=1,
@@ -1030,70 +1038,70 @@ class SDRunner(BaseRunner):
             extra_args["height"] = self.height
 
         # do the sample
-        try:
-            if self.do_mega_scale:
-                # first we will downscale the original image using the PIL algorithm
-                # called "bicubic" which is a high quality algorithm
-                # then we will upscale the image using the super resolution model
-                # then we will upscale the image using the PIL algorithm called "bicubic"
-                # to the desired size
-                # the new dimensions of scaled_w and scaled_h should be the width and height
-                # of the image that current image but aspect ratio scaled to 128
-                # so if the image is 256x256 then the scaled_w and scaled_h should be 128x128 but
-                # if the image is 512x256 then the scaled_w and scaled_h should be 128x64
+        # try:
+        if self.do_mega_scale:
+            # first we will downscale the original image using the PIL algorithm
+            # called "bicubic" which is a high quality algorithm
+            # then we will upscale the image using the super resolution model
+            # then we will upscale the image using the PIL algorithm called "bicubic"
+            # to the desired size
+            # the new dimensions of scaled_w and scaled_h should be the width and height
+            # of the image that current image but aspect ratio scaled to 128
+            # so if the image is 256x256 then the scaled_w and scaled_h should be 128x128 but
+            # if the image is 512x256 then the scaled_w and scaled_h should be 128x64
 
-                max_in_width = 512
-                scale_size = 256
-                in_width = self.width
-                in_height = self.height
-                original_image_width = data["options"]["original_image_width"]
-                original_image_height = data["options"]["original_image_height"]
+            max_in_width = 512
+            scale_size = 256
+            in_width = self.width
+            in_height = self.height
+            original_image_width = data["options"]["original_image_width"]
+            original_image_height = data["options"]["original_image_height"]
 
-                if original_image_width > max_in_width:
-                    scale_factor = max_in_width / original_image_width
-                    in_width = int(original_image_width * scale_factor)
-                    in_height = int(original_image_height * scale_factor)
-                    scale_size = int(scale_size * scale_factor)
+            if original_image_width > max_in_width:
+                scale_factor = max_in_width / original_image_width
+                in_width = int(original_image_width * scale_factor)
+                in_height = int(original_image_height * scale_factor)
+                scale_size = int(scale_size * scale_factor)
 
-                if in_width > max_in_width:
-                    # scale down in_width and in_height by scale_size
-                    # but keep the aspect ratio
-                    in_width = scale_size
-                    in_height = int((scale_size / original_image_width) * original_image_height)
+            if in_width > max_in_width:
+                # scale down in_width and in_height by scale_size
+                # but keep the aspect ratio
+                in_width = scale_size
+                in_height = int((scale_size / original_image_width) * original_image_height)
 
-                # now we will scale the image to the new dimensions
-                # and then upscale it using the super resolution model
-                # and then downscale it using the PIL bicubic algorithm
-                # to the original dimensions
-                # this will give us a high quality image
-                scaled_w = int(in_width * (scale_size / in_height))
-                scaled_h = scale_size
-                downscaled_image = image.resize((scaled_w, scaled_h), Image.BILINEAR)
-                extra_args["image"] = downscaled_image
-                upscaled_image, nsfw_content_detected = self.do_sample(**extra_args)
-                # upscale back to self.width and self.height
-                image = upscaled_image.resize((original_image_width, original_image_height), Image.BILINEAR)
+            # now we will scale the image to the new dimensions
+            # and then upscale it using the super resolution model
+            # and then downscale it using the PIL bicubic algorithm
+            # to the original dimensions
+            # this will give us a high quality image
+            scaled_w = int(in_width * (scale_size / in_height))
+            scaled_h = scale_size
+            downscaled_image = image.resize((scaled_w, scaled_h), Image.BILINEAR)
+            extra_args["image"] = downscaled_image
+            upscaled_image, nsfw_content_detected = self.do_sample(**extra_args)
+            # upscale back to self.width and self.height
+            image = upscaled_image.resize((original_image_width, original_image_height), Image.BILINEAR)
 
-                return image
-            else:
-                image, nsfw_content_detected = self.do_sample(**extra_args)
-        except Exception as e:
-            if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
-                raise Exception(self.cuda_error_message)
-            elif "`flshattF` is not supported because" in str(e):
-                # try again
-                logger.info("Disabling xformers and trying again")
-                self.pipe.enable_xformers_memory_efficient_attention(
-                    attention_op=None)
-                self.pipe.vae.enable_xformers_memory_efficient_attention(
-                    attention_op=None)
-                # redo the sample with xformers enabled
-                return self._sample_diffusers_model(data)
-            else:
-                if self.is_dev_env:
-                    traceback.print_exc()
-                logger.error("Something went wrong while generating image")
-                logger.error(e)
+            return image
+        else:
+            image, nsfw_content_detected = self.do_sample(**extra_args)
+        # except Exception as e:
+        #     if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
+        #         raise Exception(self.cuda_error_message)
+        #     elif "`flshattF` is not supported because" in str(e):
+        #         # try again
+        #         logger.info("Disabling xformers and trying again")
+        #         self.pipe.enable_xformers_memory_efficient_attention(
+        #             attention_op=None)
+        #         self.pipe.vae.enable_xformers_memory_efficient_attention(
+        #             attention_op=None)
+        #         # redo the sample with xformers enabled
+        #         return self._sample_diffusers_model(data)
+        #     else:
+        #         if self.is_dev_env:
+        #             traceback.print_exc()
+        #         logger.error("Something went wrong while generating image")
+        #         logger.error(e)
 
         self.final_callback()
 
