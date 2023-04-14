@@ -5,15 +5,15 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
-    "torch==1.13.1",
-    "torchvision==0.14.1",
-    "torchaudio==0.13.1",
+    "torch==2.0.0",
+    "torchvision==0.15.1",
+    "torchaudio==2.0.1",
     "einops==0.6.0",
     "ninja==1.11.1",
     "JIT==0.2.7",
-    "triton==2.0.0.dev20221202",
+    "triton==2.0.0",
     "tqdm==4.65.0",
-    "xformers==0.0.16",
+    "xformers==0.0.18",
     "bitsandbytes==0.37.0",
     "omegaconf==2.3.0",
     "accelerate==0.18.0",
@@ -35,21 +35,21 @@ install_requires = [
     "tensorflow==2.12.0",
     "tokenizers==0.13.2",
     "tqdm==4.65.0",
-    "xformers==0.0.16",
     "charset-normalizer==3.1.0",
     "opencv-python==4.7.0.72",
     "setuptools==65.5.1",
     "sympy==1.11.1",
     "typing_extensions==4.5.0",
     "urllib3==1.26.15",
-    "diffusers==0.14.0",
-    "transformers==4.27.4"
+    "diffusers==0.15.0",
+    "transformers==4.27.4",
+    "compel==1.1.3",
 ]
 
 
 setup(
     name="aihandler",
-    version="1.8.21",
+    version="1.9.0",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
