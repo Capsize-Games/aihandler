@@ -810,6 +810,7 @@ class SDRunner(BaseRunner):
             output = self.call_pipe(**kwargs)
         except Exception as e:
             logger.warning("something went wrong")
+            print(e)
             logger.error(e)
             if "`flshattF` is not supported because" in str(e):
                 # try again
@@ -850,7 +851,7 @@ class SDRunner(BaseRunner):
         :return:
         """
         for extension in self.active_extensions:
-            kwargs = extension.call_pipe(self, **kwargs)
+            kwargs = extension.call_pipe(self.options, self.model_base_path, self.pipe, **kwargs)
         return kwargs
 
     def call_pipe(self, **kwargs):
@@ -873,7 +874,7 @@ class SDRunner(BaseRunner):
             )
         else:
             print("CALLING PIPE ", self.prompt)
-            #kwargs = self.call_pipe_extension(**kwargs)
+            kwargs = self.call_pipe_extension(**kwargs)
             return self.pipe(
                 prompt_embeds=prompt_embeds,
                 negative_prompt_embeds=negative_prompt_embeds,
