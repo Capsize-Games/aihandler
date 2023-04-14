@@ -76,6 +76,7 @@ class SDRunner(BaseRunner):
     depth2img = None
     controlnet = None
     superresolution = None
+    txt2vid = None
     state = None
     local_files_only = True
 
@@ -92,6 +93,7 @@ class SDRunner(BaseRunner):
     do_change_scheduler = False
     embeds_loaded = False
     controlnet_type = "canny"
+    options = {}
 
     @property
     def do_mega_scale(self):
@@ -116,6 +118,10 @@ class SDRunner(BaseRunner):
     @property
     def is_txt2img(self):
         return self.action == "txt2img"
+
+    @property
+    def is_txt2vid(self):
+        return self.action == "txt2vid"
 
     @property
     def is_img2img(self):
@@ -166,7 +172,10 @@ class SDRunner(BaseRunner):
             return None
         # set logging level to fatal for all loggers
         import diffusers
-        scheduler_class = getattr(diffusers, self.schedulers[self.scheduler_name])
+        if self.is_txt2vid:
+            scheduler_class = getattr(diffusers, "DPMSolverMultistepScheduler")
+        else:
+            scheduler_class = getattr(diffusers, self.schedulers[self.scheduler_name])
         kwargs = {
             "subfolder": "scheduler"
         }
@@ -213,6 +222,8 @@ class SDRunner(BaseRunner):
             return self.superresolution is not None
         elif self.is_controlnet:
             return self.controlnet is not None
+        elif self.is_txt2vid:
+            return self.txt2vid is not None
 
     @property
     def pipe(self):
@@ -230,6 +241,8 @@ class SDRunner(BaseRunner):
             return self.superresolution
         elif self.is_controlnet:
             return self.controlnet
+        elif self.is_txt2vid:
+            return self.txt2vid
         else:
             raise ValueError(f"Invalid action {self.action} unable to get pipe")
 
@@ -249,12 +262,14 @@ class SDRunner(BaseRunner):
             self.superresolution = value
         elif self.is_controlnet:
             self.controlnet = value
+        elif self.is_txt2vid:
+            self.txt2vid = value
         else:
             raise ValueError(f"Invalid action {self.action} unable to set pipe")
 
     @property
     def use_last_channels(self):
-        return self._use_last_channels
+        return self._use_last_channels and not self.is_txt2vid
 
     @use_last_channels.setter
     def use_last_channels(self, value):
@@ -317,6 +332,7 @@ class SDRunner(BaseRunner):
     @property
     def action_diffuser(self):
         from diffusers import (
+            DiffusionPipeline,
             StableDiffusionPipeline,
             StableDiffusionImg2ImgPipeline,
             StableDiffusionInstructPix2PixPipeline,
@@ -340,6 +356,8 @@ class SDRunner(BaseRunner):
             return StableDiffusionUpscalePipeline
         elif self.is_controlnet:
             return StableDiffusionControlNetPipeline
+        elif self.is_txt2vid:
+            return DiffusionPipeline
         else:
             raise ValueError("Invalid action")
 
@@ -387,6 +405,10 @@ class SDRunner(BaseRunner):
         except requests.ConnectionError:
             return False
 
+    @property
+    def txt2vid_file(self):
+        return os.path.join(self.model_base_path, "videos", f"{self.prompt}_{self.seed}.mp4")
+
     def _clear_memory(self):
         torch.cuda.empty_cache()
         gc.collect()
@@ -399,6 +421,7 @@ class SDRunner(BaseRunner):
         self.depth2img.to("cpu") if self.depth2img and skip_model != "depth2img" else None
         self.superresolution.to("cpu") if self.superresolution and skip_model != "superresolution" else None
         self.controlnet.to("cpu") if self.controlnet and skip_model != "controlnet" else None
+        self.txt2vid.to("cpu") if self.txt2vid and skip_model != "txt2vid" else None
         self._clear_memory()
 
     def load_controlnet_from_ckpt(self, pipeline):
@@ -588,18 +611,6 @@ class SDRunner(BaseRunner):
                     logger.warning(e)
             self.settings_manager.settings.available_embeddings.set(", ".join(tokens))
 
-    def _load_embeddings(self):
-        # in the embeddings foloder we will get all pt files and merge them into the model
-        embeddings_folder = os.path.join(self.model_base_path, "embeddings")
-        if os.path.exists(embeddings_folder):
-            logger.info("Loading embeddings...")
-            for f in os.listdir(embeddings_folder):
-                if f.endswith(".pt"):
-                    logger.debug(f"Loading {f}")
-                    embedding = torch.load(os.path.join(embeddings_folder, f))
-        else:
-            print("No embeddings folder found", embeddings_folder)
-
     def _apply_memory_efficient_settings(self):
         logger.debug("Applying memory efficient settings")
         # enhance with memory settings
@@ -759,6 +770,8 @@ class SDRunner(BaseRunner):
         logger.debug(f"  use_enable_vae_slicing: {self.use_enable_vae_slicing}")
         logger.debug(f"  use_xformers: {self.use_xformers}")
 
+        self.options = options
+
         torch.backends.cuda.matmul.allow_tf32 = self.use_tf32
         torch.backends.cudnn.benchmark = self.use_cudnn_benchmark
 
@@ -793,15 +806,7 @@ class SDRunner(BaseRunner):
                     kwargs["controlnet_conditioning_scale"] = kwargs["strength"]
                     del kwargs["strength"]
 
-            output = self.pipe(
-                self.prompt,
-                negative_prompt=self.negative_prompt,
-                guidance_scale=self.guidance_scale,
-                num_inference_steps=self.num_inference_steps,
-                num_images_per_prompt=1,
-                callback=self.callback,
-                **kwargs
-            )
+            output = self.call_pipe(**kwargs)
         except Exception as e:
             if "`flshattF` is not supported because" in str(e):
                 # try again
@@ -812,13 +817,64 @@ class SDRunner(BaseRunner):
                 return self.do_sample(**kwargs)
             output = None
 
-        if output:
-            image = output.images[0]
+        if self.is_txt2vid:
+            return self.handle_txt2vid_output(output)
+        else:
+            image = output.images[0] if output else None
+            nsfw_content_detected = None
+            if self.action_has_safety_checker:
+                nsfw_content_detected = output.nsfw_content_detected
+            return image, nsfw_content_detected
 
-        nsfw_content_detected = None
-        if self.action_has_safety_checker:
-            nsfw_content_detected = output.nsfw_content_detected
-        return image, nsfw_content_detected
+    active_extensions = []
+
+    def handle_txt2vid_output(self, output):
+        pil_image = None
+        if output:
+            from diffusers.utils import export_to_video
+            video_frames = output.frames
+            os.makedirs(os.path.dirname(self.txt2vid_file), exist_ok=True)
+            export_to_video(video_frames, self.txt2vid_file)
+            pil_image = Image.fromarray(video_frames[0])
+        else:
+            print("failed to get output from txt2vid")
+        return pil_image, None
+
+    def call_pipe_extension(self, **kwargs):
+        """
+        This calls the call_pipe method on all active extensions
+        :param kwargs:
+        :return:
+        """
+        for extension in self.active_extensions:
+            kwargs = extension.call_pipe(self, **kwargs)
+        return kwargs
+
+    def call_pipe(self, **kwargs):
+        """
+        Generate an image using the pipe
+        :param kwargs:
+        :return:
+        """
+        if self.is_txt2vid:
+            return self.pipe(
+                self.prompt,
+                negative_prompt=self.negative_prompt,
+                guidance_scale=self.guidance_scale,
+                num_inference_steps=self.num_inference_steps,
+                callback=self.callback,
+            )
+        else:
+            kwargs = self.call_pipe_extension(**kwargs)
+            return self.pipe(
+                self.prompt,
+                negative_prompt=self.negative_prompt,
+                guidance_scale=self.guidance_scale,
+                num_inference_steps=self.num_inference_steps,
+                num_images_per_prompt=1,
+                callback=self.callback,
+                **kwargs
+            )
 
     def _preprocess_canny(self, image):
         image = np.array(image)
@@ -957,6 +1013,8 @@ class SDRunner(BaseRunner):
             #extra_args["depth_map"] = mask
             extra_args["image"] = image
             extra_args["strength"] = self.strength
+        elif action == "txt2vid":
+            pass
         elif self.is_superresolution:
             image = data["options"]["image"]
             if self.do_mega_scale:
@@ -1113,12 +1171,18 @@ class SDRunner(BaseRunner):
 
     def callback(self, step: int, _time_step, _latents):
         # convert _latents to image
+        image = None
+        if not self.is_txt2vid:
+            image = self._latents_to_image(_latents)
+        data = self.data
+        if self.is_txt2vid:
+            data["video_filename"] = self.txt2vid_file
         self.tqdm_callback(
             step,
             int(self.num_inference_steps * self.strength),
             self.action,
-            image=self._latents_to_image(_latents),
-            data=self.data,
+            image=image,
+            data=data,
         )
         pass
 
@@ -1154,6 +1218,8 @@ class SDRunner(BaseRunner):
         elif data["action"] == "superresolution" and self.initialized and self.superresolution is None:
             self.initialized = False
         elif data["action"] == "txt2img" and self.initialized and self.txt2img is None:
+            self.initialized = False
+        elif data["action"] == "txt2vid" and self.initialized and self.txt2vid is None:
             self.initialized = False
         error = None
         try:
