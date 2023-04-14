@@ -530,7 +530,6 @@ class SDRunner(BaseRunner):
         # store the model_path
         self.pipe.model_path = self.model_path
 
-        #self._load_embeddings()
         embeddings_folder = os.path.join(self.model_base_path, "embeddings")
         self.load_learned_embed_in_clip(embeddings_folder)
 
