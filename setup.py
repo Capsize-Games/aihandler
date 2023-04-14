@@ -14,7 +14,7 @@ install_requires = [
     "triton==2.0.0",
     "tqdm==4.65.0",
     "xformers==0.0.18",
-    "bitsandbytes==0.37.0",
+    "bitsandbytes==0.38.0",
     "omegaconf==2.3.0",
     "accelerate==0.18.0",
     "controlnet_aux==0.0.1",
@@ -44,6 +44,7 @@ install_requires = [
     "diffusers==0.15.0",
     "transformers==4.27.4",
     "compel==1.1.3",
+    "sympy==1.11.1",
 ]
 
 
