@@ -38,7 +38,7 @@ System requirements
 
 Install
 ```
-pip install https://github.com/w4ffl35/diffusers/archive/refs/tags/v0.14.0.ckpt_fix_0.0.1.tar.gz
+pip install https://github.com/w4ffl35/diffusers/archive/refs/tags/v0.15.0.ckpt_fix_0.0.1.tar.gz
 pip install https://github.com/w4ffl35/transformers/archive/refs/tags/tensor_fix-v1.0.2.tar.gz
 pip install aihandler
 ```

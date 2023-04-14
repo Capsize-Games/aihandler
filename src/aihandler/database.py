@@ -1,5 +1,5 @@
 import os
-from aihandler.qtvar import Var, BooleanVar, IntVar, StringVar, DoubleVar, FloatVar
+from aihandler.qtvar import Var, BooleanVar, IntVar, StringVar, DoubleVar, FloatVar, ListVar
 from aihandler.settings import \
     DEFAULT_MODEL, \
     DEFAULT_SCHEDULER, \
@@ -240,6 +240,20 @@ class RunAISettings(PropertyBase):
         self.controlnet_prompt_triggers = StringVar(app, "")
         self.controlnet_n_samples = IntVar(app, 1)
         self.controlnet_strength = DoubleVar(app, default_strength)
+
+        self.txt2vid_steps = IntVar(app, 20)
+        self.txt2vid_ddim_eta = DoubleVar(app, 0.5)
+        self.txt2vid_height = IntVar(app, 512)
+        self.txt2vid_width = IntVar(app, 512)
+        self.txt2vid_scale = DoubleVar(app, default_scale)
+        self.txt2vid_seed = IntVar(app, 42)
+        self.txt2vid_random_seed = BooleanVar(app)
+        self.txt2vid_model_var = StringVar(app, DEFAULT_MODEL)
+        self.txt2vid_scheduler_var = StringVar(app, DEFAULT_SCHEDULER)
+        self.txt2vid_prompt_triggers = StringVar(app, "")
+        self.txt2vid_n_samples = IntVar(app, 1)
+
+        self.available_extensions = ListVar(app, [])
 
     def set_namespace(self, namespace):
         self.namespace = namespace

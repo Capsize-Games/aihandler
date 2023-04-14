@@ -175,6 +175,10 @@ class OfflineClient(QtCore.QObject):
             self.request_worker_thread.terminate()
             self.request_worker_thread.wait()
 
+    def cancel_current_request(self):
+        # cancel the current operation
+        pass
+
 
 class RequestWorker(QtCore.QObject):
     client: OfflineClient
