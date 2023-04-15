@@ -1216,9 +1216,6 @@ class SDRunner(BaseRunner):
         image_var: callable,
         error_var: callable = None
     ):
-        # check if model in data is cached
-        # if not, download it
-        # if it is, load it
         self.data = data
         self.set_message("Generating image...")
 
