@@ -1221,20 +1221,10 @@ class SDRunner(BaseRunner):
         # if it is, load it
         self.data = data
         self.set_message("Generating image...")
-        if data["action"] == "outpaint" and self.initialized and self.outpaint is None:
-            self.initialized = False
-        elif data["action"] == "img2img" and self.initialized and self.img2img is None:
-            self.initialized = False
-        elif data["action"] == "controlnet" and self.initialized and self.controlnet is None:
-            self.initialized = False
-        elif data["action"] == "depth" and self.initialized and self.depth2img is None:
-            self.initialized = False
-        elif data["action"] == "superresolution" and self.initialized and self.superresolution is None:
-            self.initialized = False
-        elif data["action"] == "txt2img" and self.initialized and self.txt2img is None:
-            self.initialized = False
-        elif data["action"] == "txt2vid" and self.initialized and self.txt2vid is None:
-            self.initialized = False
+
+        action = "depth2img" if data["action"] == "depth" else data["action"]
+        self.initialized =  self.__dict__[action] is not None
+
         error = None
         try:
             self._generate(data, image_var=image_var)
