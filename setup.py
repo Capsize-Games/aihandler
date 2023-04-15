@@ -5,16 +5,16 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
-    "torch==2.0.0",
-    "torchvision==0.15.1",
-    "torchaudio==2.0.1",
+    # "torch==2.0.0",
+    # "torchvision==0.15.1",
+    # "torchaudio==2.0.1",
+    # "bitsandbytes==0.38.0",
     "einops==0.6.0",
     "ninja==1.11.1",
     "JIT==0.2.7",
     "triton==2.0.0",
     "tqdm==4.65.0",
     "xformers==0.0.18",
-    "bitsandbytes==0.38.0",
     "omegaconf==2.3.0",
     "accelerate==0.18.0",
     "controlnet_aux==0.0.1",
@@ -45,6 +45,7 @@ install_requires = [
     "transformers==4.27.4",
     "compel==1.1.3",
     "sympy==1.11.1",
+    "regex",
 ]
 
 
