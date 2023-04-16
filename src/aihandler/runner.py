@@ -43,9 +43,22 @@ class SDRunner(BaseRunner):
     num_inference_steps: int = 20
     height: int = 512
     width: int = 512
+    steps: int = 20
+    ddim_eta: float = 0.5
     C: int = 4
     f: int = 8
-    batch_size = 1
+    batch_size: int = 1
+    n_samples: int = 1
+    pos_x: int = 0
+    pos_y: int = 0
+    outpaint_box_rect = None
+    hf_token: str = ""
+    enable_model_cpu_offload: bool = False
+    use_attention_slicing: bool = False
+    use_tf32: bool = False
+    use_cudnn_benchmark: bool = False
+    use_enable_vae_slicing: bool = False
+    use_xformers: bool = False
     reload_model: bool = False
     action: str = ""
     options: dict = {}
@@ -482,15 +495,16 @@ class SDRunner(BaseRunner):
             "DEIS": "deis",
         }
         from diffusers.pipelines.stable_diffusion.convert_from_ckpt import \
-            load_pipeline_from_original_stable_diffusion_ckpt
+            download_from_original_stable_diffusion_ckpt
         logger.debug(f"Loading ckpt file, is safetensors {self.is_safetensors}")
         try:
-            pipeline = load_pipeline_from_original_stable_diffusion_ckpt(
+            pipeline = download_from_original_stable_diffusion_ckpt(
                 checkpoint_path=self.model,
                 original_config_file={"v1": "v1.yaml", "v2": "v2.yaml"},
                 scheduler_type=schedulers[self.scheduler_name],
                 device=self.device,
                 from_safetensors=self.is_safetensors,
+                load_safety_checker=self.do_nsfw_filter,
             )
             if self.is_controlnet:
                 pipeline = self.load_controlnet_from_ckpt(pipeline)
@@ -739,7 +753,21 @@ class SDRunner(BaseRunner):
         self.width = int(options.get(f"{action}_width", self.width))
         self.C = int(options.get(f"{action}_C", self.C))
         self.f = int(options.get(f"{action}_f", self.f))
+        self.steps = int(options.get(f"{action}_steps", self.steps))
+        self.ddim_eta = float(options.get(f"{action}_ddim_eta", self.ddim_eta))
         self.batch_size = int(options.get(f"{action}_n_samples", self.batch_size))
+        self.n_samples = int(options.get(f"{action}_n_samples", self.n_samples))
+        self.pos_x = int(options.get(f"{action}_pos_x", self.pos_x))
+        self.pos_y = int(options.get(f"{action}_pos_y", self.pos_y))
+        self.outpaint_box_rect = options.get(f"{action}_outpaint_box_rect", self.outpaint_box_rect)
+        self.hf_token = ""
+        self.enable_model_cpu_offload = False
+        self.use_attention_slicing = self.use_attention_slicing
+        self.use_tf32 = self.use_tf32
+        self.use_cudnn_benchmark = self.use_cudnn_benchmark
+        self.use_enable_vae_slicing = self.use_enable_vae_slicing
+        self.use_xformers = self.use_xformers
+
         do_nsfw_filter = bool(options.get(f"do_nsfw_filter", self.do_nsfw_filter))
         self.do_nsfw_filter = do_nsfw_filter
         self.action = action
@@ -788,6 +816,7 @@ class SDRunner(BaseRunner):
         # move everything but this action to the cpu
         # self.move_models_to_cpu(self.action)
         #if not self.is_ckpt_model and not self.is_safetensors:
+        logger.info(f"Load safety checker")
         self.load_safety_checker(self.action)
 
         if not self.use_enable_sequential_cpu_offload:
@@ -798,15 +827,16 @@ class SDRunner(BaseRunner):
             self.pipe.enable_sequential_cpu_offload()
         try:
             if self.is_controlnet:
+                logger.info(f"Setting up controlnet")
                 #generator = torch.manual_seed(self.seed)
                 kwargs["image"] = self._preprocess_for_controlnet(kwargs.get("image"), process_type=self.controlnet_type)
                 #kwargs["generator"] = generator
 
-            if self.is_controlnet:
                 if kwargs.get("strength"):
                     kwargs["controlnet_conditioning_scale"] = kwargs["strength"]
                     del kwargs["strength"]
 
+            logger.info(f"Generating image")
             output = self.call_pipe(**kwargs)
         except Exception as e:
             logger.warning("something went wrong")
@@ -832,13 +862,67 @@ class SDRunner(BaseRunner):
 
     active_extensions = []
 
+    def enhance_video(self, video_frames):
+        """
+        Iterate over each video frame and call img2img on it using the same options that were passed
+        and replace each frame with the enhanced version.
+        :param video_frames: list of numpy arrays
+        :return: video_frames: list of numpy arrays
+        """
+        new_video_frames = []
+        for img in video_frames:
+            pil_image = Image.fromarray(img)
+            pil_image = pil_image.resize((self.width, self.height), Image.LANCZOS)
+            image, nsfw_detected = self.generator_sample({
+                "action": "img2img",
+                "options": {
+                    "image": pil_image,
+                    "mask": pil_image,
+                    "img2img_prompt": self.prompt,
+                    "img2img_negative_prompt": self.negative_prompt,
+                    "img2img_steps": self.steps,
+                    "img2img_ddim_eta": self.ddim_eta,
+                    "img2img_n_iter": 1,
+                    "img2img_width": self.width,
+                    "img2img_height": self.height,
+                    "img2img_n_samples": 20,
+                    "img2img_strength": 0.5,
+                    "img2img_scale": 7.5,
+                    "img2img_seed": self.seed,
+                    "img2img_model": "Stable diffusion V2",
+                    "img2img_scheduler": self.scheduler_name,
+                    "img2img_model_path": "stabilityai/stable-diffusion-2-1-base",
+                    "img2img_model_branch": "fp16",
+                    "width": self.width,
+                    "height": self.height,
+                    "do_nsfw_filter": self.do_nsfw_filter,
+                    "model_base_path": self.model_base_path,
+                    "pos_x": self.pos_x,
+                    "pos_y": self.pos_y,
+                    "outpaint_box_rect": self.outpaint_box_rect,
+                    "hf_token": self.hf_token,
+                    "enable_model_cpu_offload": self.enable_model_cpu_offload,
+                    "use_attention_slicing": self.use_attention_slicing,
+                    "use_tf32": self.use_tf32,
+                    "use_cudnn_benchmark": self.use_cudnn_benchmark,
+                    "use_enable_vae_slicing": self.use_enable_vae_slicing,
+                    "use_xformers": self.use_xformers,
+                }
+            }, image_var=None, use_callback=False)
+            if image:
+                # convert to numpy array and add to new_video_frames
+                new_video_frames.append(np.array(image))
+        return new_video_frames if len(new_video_frames) > 0 else video_frames
+
     def handle_txt2vid_output(self, output):
         pil_image = None
         if output:
             from diffusers.utils import export_to_video
             video_frames = output.frames
             os.makedirs(os.path.dirname(self.txt2vid_file), exist_ok=True)
+            self.enhance_video(video_frames)
             export_to_video(video_frames, self.txt2vid_file)
+
             pil_image = Image.fromarray(video_frames[0])
         else:
             print("failed to get output from txt2vid")
@@ -860,9 +944,14 @@ class SDRunner(BaseRunner):
         :param kwargs:
         :return:
         """
+        logger.info("Initialize compel")
         compel_proc = Compel(tokenizer=self.pipe.tokenizer, text_encoder=self.pipe.text_encoder)
+        logger.info("Initialize compel prompt")
         prompt_embeds = compel_proc(self.prompt)
+        logger.info("Initialize compel negative prompt")
         negative_prompt_embeds = compel_proc(self.negative_prompt) if self.negative_prompt else None
+
+        logger.info(f"is_txt2vid: {self.is_txt2vid}")
 
         if self.is_txt2vid:
             return self.pipe(
@@ -1143,7 +1232,7 @@ class SDRunner(BaseRunner):
 
         return blended_image
 
-    def _generate(self, data: dict, image_var: ImageVar = None):
+    def _generate(self, data: dict, image_var: ImageVar = None, use_callback: bool = True):
         logger.info("_generate called")
         self._prepare_options(data)
         self._prepare_scheduler()
@@ -1162,7 +1251,10 @@ class SDRunner(BaseRunner):
             total_to_generate = self.batch_size
         for n in range(total_to_generate):
             image, nsfw_content_detected = self._sample_diffusers_model(data)
-            self.image_handler(image, data, nsfw_content_detected)
+            if use_callback:
+                self.image_handler(image, data, nsfw_content_detected)
+            else:
+                return image, nsfw_content_detected
             self.seed = self.seed + 1
             if self.do_cancel:
                 self.do_cancel = False
@@ -1214,30 +1306,22 @@ class SDRunner(BaseRunner):
         self,
         data: dict,
         image_var: callable,
-        error_var: callable = None
+        error_var: callable = None,
+        use_callback: bool = True,
     ):
-        # check if model in data is cached
-        # if not, download it
-        # if it is, load it
         self.data = data
         self.set_message("Generating image...")
-        if data["action"] == "outpaint" and self.initialized and self.outpaint is None:
-            self.initialized = False
-        elif data["action"] == "img2img" and self.initialized and self.img2img is None:
-            self.initialized = False
-        elif data["action"] == "controlnet" and self.initialized and self.controlnet is None:
-            self.initialized = False
-        elif data["action"] == "depth" and self.initialized and self.depth2img is None:
-            self.initialized = False
-        elif data["action"] == "superresolution" and self.initialized and self.superresolution is None:
-            self.initialized = False
-        elif data["action"] == "txt2img" and self.initialized and self.txt2img is None:
-            self.initialized = False
-        elif data["action"] == "txt2vid" and self.initialized and self.txt2vid is None:
-            self.initialized = False
-        error = None
+
+        action = "depth2img" if data["action"] == "depth" else data["action"]
         try:
-            self._generate(data, image_var=image_var)
+            self.initialized =  self.__dict__[action] is not None
+        except KeyError:
+            self.initialized = False
+
+        error = None
+        print(data)
+        try:
+            self._generate(data, image_var=image_var, use_callback=use_callback)
         except OSError as e:
             err = e.args[0]
             logger.error(err)
