@@ -500,7 +500,7 @@ class SDRunner(BaseRunner):
         try:
             pipeline = download_from_original_stable_diffusion_ckpt(
                 checkpoint_path=self.model,
-                original_config_file={"v1": "v1.yaml", "v2": "v2.yaml"},
+                original_config_file="v1.yaml",
                 scheduler_type=schedulers[self.scheduler_name],
                 device=self.device,
                 from_safetensors=self.is_safetensors,
