@@ -495,15 +495,16 @@ class SDRunner(BaseRunner):
             "DEIS": "deis",
         }
         from diffusers.pipelines.stable_diffusion.convert_from_ckpt import \
-            load_pipeline_from_original_stable_diffusion_ckpt
+            download_from_original_stable_diffusion_ckpt
         logger.debug(f"Loading ckpt file, is safetensors {self.is_safetensors}")
         try:
-            pipeline = load_pipeline_from_original_stable_diffusion_ckpt(
+            pipeline = download_from_original_stable_diffusion_ckpt(
                 checkpoint_path=self.model,
                 original_config_file={"v1": "v1.yaml", "v2": "v2.yaml"},
                 scheduler_type=schedulers[self.scheduler_name],
                 device=self.device,
                 from_safetensors=self.is_safetensors,
+                load_safety_checker=self.do_nsfw_filter,
             )
             if self.is_controlnet:
                 pipeline = self.load_controlnet_from_ckpt(pipeline)
