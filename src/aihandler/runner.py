@@ -456,7 +456,7 @@ class SDRunner(BaseRunner):
             scheduler=pipeline.scheduler,
             safety_checker=pipeline.safety_checker,
             feature_extractor=pipeline.feature_extractor,
-            requires_safety_checker=pipeline.requires_safety_checker
+            requires_safety_checker=self.do_nsfw_filter,
         )
         if self.data["options"]["enable_model_cpu_offload"]:
             pipeline.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
