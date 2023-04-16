@@ -42,7 +42,7 @@ install_requires = [
     "typing_extensions==4.5.0",
     "urllib3==1.26.15",
     "diffusers==0.15.0",
-    "transformers==4.27.4",
+    "transformers==4.28.1",
     "compel==1.1.3",
     "sympy==1.11.1",
     "regex",
@@ -51,7 +51,7 @@ install_requires = [
 
 setup(
     name="aihandler",
-    version="1.9.1",
+    version="1.9.2",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
