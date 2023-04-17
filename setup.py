@@ -12,7 +12,7 @@ install_requires = [
     "einops==0.6.0",
     "ninja==1.11.1",
     "JIT==0.2.7",
-    "triton==2.0.0",
+    #"triton==2.0.0",
     "tqdm==4.65.0",
     "xformers==0.0.18",
     "omegaconf==2.3.0",
@@ -51,7 +51,7 @@ install_requires = [
 
 setup(
     name="aihandler",
-    version="1.9.4",
+    version="1.9.5",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
