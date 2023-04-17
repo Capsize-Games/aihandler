@@ -920,9 +920,8 @@ class SDRunner(BaseRunner):
             from diffusers.utils import export_to_video
             video_frames = output.frames
             os.makedirs(os.path.dirname(self.txt2vid_file), exist_ok=True)
-            self.enhance_video(video_frames)
+            #self.enhance_video(video_frames)
             export_to_video(video_frames, self.txt2vid_file)
-
             pil_image = Image.fromarray(video_frames[0])
         else:
             print("failed to get output from txt2vid")
@@ -963,7 +962,6 @@ class SDRunner(BaseRunner):
                 callback=self.callback,
             )
         else:
-            print("CALLING PIPE ", self.prompt)
             kwargs = self.call_pipe_extension(**kwargs)
             return self.pipe(
                 prompt_embeds=prompt_embeds,
@@ -1319,7 +1317,6 @@ class SDRunner(BaseRunner):
             self.initialized = False
 
         error = None
-        print(data)
         try:
             self._generate(data, image_var=image_var, use_callback=use_callback)
         except OSError as e:
