@@ -21,7 +21,7 @@ install_requires = [
     "huggingface-hub==0.13.3",
     "numpy==1.23.5",
     "Pillow==9.4.0",
-    "pip==23.0.1",
+    "pip==23.1.0",
     "PyQt6==6.4.2",
     "PyQt6-Qt6==6.4.3",
     "PyQt6-sip==13.4.1",
@@ -51,7 +51,7 @@ install_requires = [
 
 setup(
     name="aihandler",
-    version="1.9.6",
+    version="1.9.7",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
