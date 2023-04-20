@@ -478,6 +478,28 @@ class SDRunner(BaseRunner):
             self.pipe.enable_model_cpu_offload()
 
     def _load_ckpt_model(self):
+        logger.debug(f"Loading ckpt file, is safetensors {self.is_safetensors}")
+        try:
+            pipeline = self.download_from_original_stable_diffusion_ckpt()
+            if self.is_controlnet:
+                pipeline = self.load_controlnet_from_ckpt(pipeline)
+        except Exception as e:
+            print("Something went wrong loading the model file", e)
+            self.error_handler("Unable to load ckpt file")
+            raise e
+        # to half
+        # determine which data type to move the model to
+        pipeline.vae.to(self.data_type)
+        pipeline.text_encoder.to(self.data_type)
+        pipeline.unet.to(self.data_type)
+        if self.do_nsfw_filter:
+            pipeline.safety_checker.half()
+        return pipeline
+
+    def download_from_original_stable_diffusion_ckpt(self, config="v1.yaml"):
+        from diffusers.pipelines.stable_diffusion.convert_from_ckpt import \
+            download_from_original_stable_diffusion_ckpt
+        print("is safetensors", self.is_safetensors)
         schedulers = {
             "Euler": "euler",
             "Euler a": "euler-ancestral",
@@ -494,32 +516,22 @@ class SDRunner(BaseRunner):
             "DPM2 a k": "dpm2ak",
             "DEIS": "deis",
         }
-        from diffusers.pipelines.stable_diffusion.convert_from_ckpt import \
-            download_from_original_stable_diffusion_ckpt
-        logger.debug(f"Loading ckpt file, is safetensors {self.is_safetensors}")
         try:
-            pipeline = download_from_original_stable_diffusion_ckpt(
+            return download_from_original_stable_diffusion_ckpt(
                 checkpoint_path=self.model,
-                original_config_file="v1.yaml",
+                original_config_file=config,
                 scheduler_type=schedulers[self.scheduler_name],
                 device=self.device,
                 from_safetensors=self.is_safetensors,
                 load_safety_checker=self.do_nsfw_filter,
             )
-            if self.is_controlnet:
-                pipeline = self.load_controlnet_from_ckpt(pipeline)
-        except Exception as e:
-            print("Something went wrong loading the model file", e)
-            self.error_handler("Unable to load ckpt file")
-            raise e
-        # to half
-        # determine which data type to move the model to
-        pipeline.vae.to(self.data_type)
-        pipeline.text_encoder.to(self.data_type)
-        pipeline.unet.to(self.data_type)
-        if self.do_nsfw_filter:
-            pipeline.safety_checker.half()
-        return pipeline
+        # find exception: RuntimeError: Error(s) in loading state_dict for UNet2DConditionModel
+        except RuntimeError as e:
+            if e.args[0].startswith("Error(s) in loading state_dict for UNet2DConditionModel") and config  == "v1.yaml":
+                logger.info("Failed to load model with v1.yaml config file, trying v2.yaml")
+                return self.download_from_original_stable_diffusion_ckpt(config="v2.yaml")
+            else:
+                raise e
 
     def _load_model(self):
         logger.info("Loading model...")
