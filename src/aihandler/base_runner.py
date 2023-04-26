@@ -20,7 +20,7 @@ class BaseRunner(QObject):
         super().__init__()
         logger.set_level(LOG_LEVEL)
         self.app = kwargs.get("app", None)
-        self.settings_manager = SettingsManager(app=self.app)
+        self.settings_manager = kwargs.get("settings_manager", None)
         self._tqdm_var: TQDMVar = kwargs.get("tqdm_var", None)
         self._tqdm_callback = kwargs.get("tqdm_callback", None)
         self._image_var: ImageVar = kwargs.get("image_var", None)
@@ -31,7 +31,7 @@ class BaseRunner(QObject):
         self._message_handler = kwargs.get("message_handler", None)
         self.tqdm_callback_signal = pyqtSignal(int, int, str, object, object)
         self.get_extensions_from_url()
-        #self.initialize_active_extensions()
+        self.initialize_active_extensions()
 
     def get_extensions_from_url(self):
         available_extensions = get_extensions_from_url(self)
@@ -49,21 +49,17 @@ class BaseRunner(QObject):
         """
         extensions = []
         available_extensions = self.settings_manager.settings.available_extensions.get()
-        if available_extensions:
-            for extension in available_extensions:
-                if extension.enabled:
-                    repo = extension.repo.get()
-                    name = repo.split("/")[-1]
-                    base_path = self.settings_manager.settings.model_base_path.get()
-                    path = os.path.join(base_path, "extensions", name)
-                    ExtensionClass = import_extension_class(repo, path, "stablediffusion.py", "RunnerExtension")
-                    if ExtensionClass:
-                        extensions.append(ExtensionClass(self.settings_manager))
-
+        enabled_extensions = self.settings_manager.settings.enabled_extensions.get()
+        for extension in available_extensions:
+            if extension.name.get() in enabled_extensions:
+                repo = extension.repo.get()
+                name = repo.split("/")[-1]
+                base_path = self.settings_manager.settings.model_base_path.get()
+                path = os.path.join(base_path, "extensions", name)
+                ExtensionClass = import_extension_class(repo, path, "main.py", "Extension")
+                if ExtensionClass:
+                    extensions.append(ExtensionClass(self.settings_manager))
         self.active_extensions = extensions
-        print("*" * 100)
-        print("EXTENSIONS LOADED: ", extensions)
-        print("*" * 100)
 
     def set_message(self, message):
         if self._message_handler:

@@ -1,7 +1,7 @@
 import os
-import pickle
+import json
 from aihandler.database import RunAISettings
-from aihandler.qtvar import BooleanVar, StringVar, IntVar, FloatVar, DoubleVar
+from aihandler.qtvar import Var, BooleanVar, StringVar, IntVar, FloatVar, DoubleVar, ExtensionVar, ListVar
 
 available_tools = [
     "",
@@ -16,6 +16,7 @@ class SettingsManager:
     _instance = None
     app = None
     settings = None
+    save_disabled = False
 
     @property
     def current_tool(self):
@@ -59,41 +60,45 @@ class SettingsManager:
         except Exception as e:
             self.save_settings()
 
+    allowed_types = [BooleanVar, StringVar, IntVar, FloatVar, DoubleVar, ListVar]
+
+    def disable_save(self):
+        self.save_disabled = True
+
+    def enable_save(self):
+        self.save_disabled = False
+
     def save_settings(self):
-        HOME = os.path.expanduser("~")
-        f = open(os.path.join(HOME, "airunner.settings"), "wb")
-        # create dict of all settings
+        if self.save_disabled:
+            return
         settings = {}
         for key, value in self.settings.__dict__.items():
-            if isinstance(value, BooleanVar):
-                settings[key] = value.get()
-            elif isinstance(value, StringVar):
-                settings[key] = value.get()
-            elif isinstance(value, IntVar):
-                settings[key] = value.get()
-            elif isinstance(value, FloatVar):
-                settings[key] = value.get()
-            elif isinstance(value, DoubleVar):
-                settings[key] = value.get()
-        pickle.dump(settings, f)
+            if isinstance(value, Var) and type(value) in self.allowed_types:
+                if key == "available_extensions":
+                    continue
+                elif key == "enabled_extensions":
+                    enabled_ext = []
+                    for ext in value.get():
+                        enabled_ext.append(ext)
+                    settings[key] = enabled_ext
+                else:
+                    settings[key] = value.get()
+        HOME = os.path.expanduser("~")
+        f = open(os.path.join(HOME, "airunner.settings.json"), "w")
+        json.dump(settings, f)
 
     def load_settings(self):
+        self.disable_save()
         HOME = os.path.expanduser("~")
-        f = open(os.path.join(HOME, "airunner.settings"), "rb")
-        settings = pickle.load(f)
-        for key, value in self.settings.__dict__.items():
-            if isinstance(value, BooleanVar):
-                value.set(settings[key])
-            elif isinstance(value, StringVar):
-                value.set(settings[key])
-            elif isinstance(value, IntVar):
-                value.set(settings[key])
-            elif isinstance(value, FloatVar):
-                value.set(settings[key])
-            elif isinstance(value, DoubleVar):
-                value.set(settings[key])
-
-
+        f = open(os.path.join(HOME, "airunner.settings.json"), "r")
+        try:
+            settings = json.load(f)
+        except Exception as e:
+            settings = {}
+        for key in settings.keys():
+            value = settings[key]
+            self.settings.__dict__[key].set(value)
+        self.enable_save()
 
     def set_prompt_triggers(self):
         # cur_model = self.model_var.get()

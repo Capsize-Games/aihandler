@@ -974,7 +974,7 @@ class SDRunner(BaseRunner):
                 callback=self.callback,
             )
         else:
-            kwargs = self.call_pipe_extension(**kwargs)
+            self.pipe, kwargs = self.call_pipe_extension(**kwargs)
             return self.pipe(
                 prompt_embeds=prompt_embeds,
                 negative_prompt_embeds=negative_prompt_embeds,

@@ -115,6 +115,14 @@ class StringVar(Var):
 class ListVar(Var):
     my_signal = pyqtSignal(list)
 
+    def append(self, item):
+        self._my_variable.append(item)
+        self.emit()
+
+    def remove(self, item):
+        self._my_variable.remove(item)
+        self.emit()
+
 
 class DictVar(Var):
     my_signal = pyqtSignal(dict)
@@ -154,7 +162,7 @@ class ExtensionVar(Var):
         self.reviewed.set(reviewed, skip_save=True)
         self.official.set(official, skip_save=True)
         self.enabled.set(enabled, skip_save=True)
-        self.name.my_signal.connect(self.emit)
+        self.enabled.my_signal.connect(self.emit)
 
     def emit(self):
         self.my_signal.emit(self.name.get(), self.enabled.get() == True)
