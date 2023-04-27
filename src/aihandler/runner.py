@@ -395,21 +395,31 @@ class SDRunner(BaseRunner):
     @property
     def controlnet_model(self):
         if self.controlnet_type == "canny":
-            return "lllyasviel/sd-controlnet-canny"
+            return "lllyasviel/control_v11p_sd15_canny"
         elif self.controlnet_type == "depth":
-            return "fusing/stable-diffusion-v1-5-controlnet-depth"
-        elif self.controlnet_type == "hed":
-            return "fusing/stable-diffusion-v1-5-controlnet-hed"
+            return "lllyasviel/control_v11f1p_sd15_depth"
         elif self.controlnet_type == "mlsd":
-            return "fusing/stable-diffusion-v1-5-controlnet-mlsd"
+            return "lllyasviel/control_v11p_sd15_mlsd"
         elif self.controlnet_type == "normal":
-            return "fusing/stable-diffusion-v1-5-controlnet-normal"
+            return "lllyasviel/control_v11p_sd15_normalbae"
         elif self.controlnet_type == "scribble":
-            return "fusing/stable-diffusion-v1-5-controlnet-scribble"
+            return "lllyasviel/control_v11p_sd15_scribble"
         elif self.controlnet_type == "segmentation":
-            return "fusing/stable-diffusion-v1-5-controlnet-seg"
+            return "lllyasviel/control_v11p_sd15_seg"
+        elif self.controlnet_type == "lineart":
+            return "lllyasviel/control_v11p_sd15_lineart"
         elif self.controlnet_type == "openpose":
-            return "fusing/stable-diffusion-v1-5-controlnet-openpose"
+            return "lllyasviel/control_v11p_sd15_openpose"
+        elif self.controlnet_type == "softedge":
+            return "lllyasviel/control_v11p_sd15_softedge"
+        elif self.controlnet_type == "pixel2pixel":
+            return "lllyasviel/control_v11e_sd15_ip2p"
+        elif self.controlnet_type == "inpaint":
+            return "lllyasviel/control_v11p_sd15_inpaint"
+        elif self.controlnet_type == "shuffle":
+            return "lllyasviel/control_v11e_sd15_shuffle"
+        elif self.controlnet_type == "anime":
+            return "lllyasviel/control_v11p_sd15s2_lineart_anime"
 
     @property
     def has_internet_connection(self):
