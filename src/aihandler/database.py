@@ -69,7 +69,6 @@ class RunAISettings(PropertyBase):
             raise e
 
     def initialize(self, settings=None):
-        self.settings = settings
         app = self.app
 
         # general settings
@@ -254,10 +253,11 @@ class RunAISettings(PropertyBase):
         self.txt2vid_n_samples = IntVar(app, 1)
 
         self.available_extensions = ListVar(app, [])
+        self.enabled_extensions = ListVar(app, [])
+        self.active_extensions = ListVar(app, [])
 
     def set_namespace(self, namespace):
         self.namespace = namespace
 
     def reset_settings_to_default(self):
         self.initialize()
-

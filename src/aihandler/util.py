@@ -40,10 +40,8 @@ def get_extensions_from_url(app):
 def get_extensions_from_path(path):
     # check for extensions via subfolders under path
     available_extensions = []
-    print("directories", os.listdir(path))
     for f in os.listdir(path):
         if os.path.isdir(os.path.join(path, f)):
-            print("its a dir")
             # build extension details from {path}/setup.py
             try:
                 # read setup.py from the extensions folder
@@ -86,21 +84,15 @@ def download_extension(github_url, extension_path):
         # get the latest release
         repo_name = github_url.split("/")[-1]
         url = f"{github_url}/releases/latest"
-        print("Downloading", url)
         response = requests.get(url)
-        print("Response", response.status_code)
         if response.status_code == 200:
             # get the latest release zip
             latest_release_url = response.url
             # replace "tag" with "tags" in latest_release_url
             latest_release_url = latest_release_url.replace("/releases/tag/", "/archive/refs/tags/")
-            print(response.links)
-            print(response.url)
-            print("Downloading", f"{latest_release_url}.zip")
             response = requests.get(f"{latest_release_url}.zip")
             if response.status_code == 200:
                 # extract the zip into the extensions folder
-                print("Extracting to ", extension_path)
                 with zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref:
                     # extract the contents of zip folder into extension_path + repo_name
                     zip_ref.extractall(extension_path)
