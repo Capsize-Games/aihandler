@@ -60,8 +60,6 @@ class SettingsManager:
         except Exception as e:
             self.save_settings()
 
-    allowed_types = [BooleanVar, StringVar, IntVar, FloatVar, DoubleVar, ListVar]
-
     def disable_save(self):
         self.save_disabled = True
 
@@ -73,8 +71,8 @@ class SettingsManager:
             return
         settings = {}
         for key, value in self.settings.__dict__.items():
-            if isinstance(value, Var) and type(value) in self.allowed_types:
-                if key == "available_extensions":
+            if isinstance(value, Var):
+                if key in ["available_extensions", "active_extensions"]:
                     continue
                 elif key == "enabled_extensions":
                     enabled_ext = []
@@ -83,6 +81,8 @@ class SettingsManager:
                     settings[key] = enabled_ext
                 else:
                     settings[key] = value.get()
+            elif type(value) in [list, dict, int, float, str, bool]:
+                settings[key] = value
         HOME = os.path.expanduser("~")
         f = open(os.path.join(HOME, "airunner.settings.json"), "w")
         json.dump(settings, f)
@@ -97,7 +97,10 @@ class SettingsManager:
             settings = {}
         for key in settings.keys():
             value = settings[key]
-            self.settings.__dict__[key].set(value)
+            try:
+                self.settings.__dict__[key].set(value)
+            except Exception as e:
+                self.settings.__dict__[key] = value
         self.enable_save()
 
     def set_prompt_triggers(self):
