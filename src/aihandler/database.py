@@ -256,6 +256,9 @@ class RunAISettings(PropertyBase):
         self.enabled_extensions = ListVar(app, [])
         self.active_extensions = ListVar(app, [])
 
+        self.primary_brush_opacity = IntVar(app, 255)
+        self.secondary_brush_opacity = IntVar(app, 255)
+
     def set_namespace(self, namespace):
         self.namespace = namespace
 
