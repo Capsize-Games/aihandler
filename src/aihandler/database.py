@@ -260,7 +260,6 @@ class RunAISettings(PropertyBase):
         self.secondary_brush_opacity = IntVar(app, 255)
 
         self.embeddings_path = StringVar(app, "")
-        self.lora_path = StringVar(app, "")
 
     def set_namespace(self, namespace):
         self.namespace = namespace
