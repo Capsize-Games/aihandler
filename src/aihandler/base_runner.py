@@ -58,7 +58,7 @@ class BaseRunner(QObject):
                 path = os.path.join(base_path, "extensions", name)
                 ExtensionClass = import_extension_class(repo, path, "main.py", "Extension")
                 if ExtensionClass:
-                    extensions.append(ExtensionClass(self.settings_manager))
+                    extensions.append(ExtensionClass(self.app, self.settings_manager))
         self.active_extensions = extensions
 
     def set_message(self, message):
