@@ -37,6 +37,10 @@ class BaseRunner(QObject):
         available_extensions = get_extensions_from_url(self)
         self.settings_manager.settings.available_extensions.set(available_extensions)
 
+    def refresh_active_extensions(self):
+        self.active_extensions = []
+        self.initialize_active_extensions()
+
     def initialize_active_extensions(self):
         """
         Initialize extensions by loading them from the extensions_directory.
@@ -55,7 +59,10 @@ class BaseRunner(QObject):
                 repo = extension.repo.get()
                 name = repo.split("/")[-1]
                 base_path = self.settings_manager.settings.model_base_path.get()
-                path = os.path.join(base_path, "extensions", name)
+                extensions_path = self.settings_manager.settings.extensions_path.get() or "extensions"
+                if extensions_path == "extensions":
+                    extensions_path = os.path.join(base_path, extensions_path)
+                path = os.path.join(extensions_path, name)
                 ExtensionClass = import_extension_class(repo, path, "main.py", "Extension")
                 if ExtensionClass:
                     extensions.append(ExtensionClass(self.app, self.settings_manager))
