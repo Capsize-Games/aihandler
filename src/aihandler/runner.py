@@ -528,7 +528,7 @@ class SDRunner(BaseRunner):
         }
         try:
             return download_from_original_stable_diffusion_ckpt(
-                checkpoint_path=self.model,
+                checkpoint_path=f"{self.settings_manager.settings.model_base_path.get()}/{self.model}",
                 original_config_file=config,
                 scheduler_type=schedulers[self.scheduler_name],
                 device=self.device,
