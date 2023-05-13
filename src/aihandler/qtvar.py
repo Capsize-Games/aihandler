@@ -16,7 +16,7 @@ class Var(QObject):
             try:
                 self._app.save_settings()
             except Exception as e:
-                print(e)
+                print("Failed to save setting:", e)
 
     def get(self):
         return self._my_variable

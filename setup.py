@@ -14,7 +14,7 @@ install_requires = [
     "JIT==0.2.7",
     #"triton==2.0.0",
     "tqdm==4.65.0",
-    "xformers==0.0.18",
+    "xformers==0.0.19",
     "omegaconf==2.3.0",
     "accelerate==0.18.0",
     "controlnet_aux==0.0.1",
@@ -26,7 +26,7 @@ install_requires = [
     "PyQt6-Qt6==6.4.3",
     "PyQt6-sip==13.4.1",
     "pyqtdarktheme==2.1.0",
-    "pyre-extensions==0.0.23",
+    "pyre-extensions==0.0.29",
     "lightning==2.0.0",
     "requests==2.28.2",
     "requests-oauthlib==1.3.1",
@@ -51,7 +51,7 @@ install_requires = [
 
 setup(
     name="aihandler",
-    version="1.9.9",
+    version="1.10.0",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),

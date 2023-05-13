@@ -20,6 +20,7 @@ class BaseRunner(QObject):
         super().__init__()
         logger.set_level(LOG_LEVEL)
         self.app = kwargs.get("app", None)
+        self.load_extensions = kwargs.get("load_extensions", True)
         self.settings_manager = kwargs.get("settings_manager", None)
         self._tqdm_var: TQDMVar = kwargs.get("tqdm_var", None)
         self._tqdm_callback = kwargs.get("tqdm_callback", None)
@@ -30,12 +31,20 @@ class BaseRunner(QObject):
         self._message_var = kwargs.get("message_var", None)
         self._message_handler = kwargs.get("message_handler", None)
         self.tqdm_callback_signal = pyqtSignal(int, int, str, object, object)
-        self.get_extensions_from_url()
-        self.initialize_active_extensions()
+        if self.load_extensions:
+            self.get_extensions_from_url()
+            self.initialize_active_extensions()
 
     def get_extensions_from_url(self):
         available_extensions = get_extensions_from_url(self)
-        self.settings_manager.settings.available_extensions.set(available_extensions)
+        try:
+            self.settings_manager.settings.available_extensions.set(available_extensions)
+        except AttributeError:
+            pass
+
+    def refresh_active_extensions(self):
+        self.active_extensions = []
+        self.initialize_active_extensions()
 
     def initialize_active_extensions(self):
         """
@@ -48,17 +57,26 @@ class BaseRunner(QObject):
         :return:
         """
         extensions = []
-        available_extensions = self.settings_manager.settings.available_extensions.get()
+        try:
+            available_extensions = self.settings_manager.settings.available_extensions.get()
+        except AttributeError:
+            return
         enabled_extensions = self.settings_manager.settings.enabled_extensions.get()
         for extension in available_extensions:
             if extension.name.get() in enabled_extensions:
                 repo = extension.repo.get()
                 name = repo.split("/")[-1]
                 base_path = self.settings_manager.settings.model_base_path.get()
-                path = os.path.join(base_path, "extensions", name)
+                extensions_path = self.settings_manager.settings.extensions_path.get() or "extensions"
+                if extensions_path == "extensions":
+                    extensions_path = os.path.join(base_path, extensions_path)
+                path = os.path.join(extensions_path, name)
                 ExtensionClass = import_extension_class(repo, path, "main.py", "Extension")
-                if ExtensionClass:
-                    extensions.append(ExtensionClass(self.settings_manager))
+                try:
+                    if ExtensionClass:
+                        extensions.append(ExtensionClass(self.app, self.settings_manager))
+                except TypeError:
+                    pass
         self.active_extensions = extensions
 
     def set_message(self, message):

@@ -84,6 +84,7 @@ class RunAISettings(PropertyBase):
         self.do_settings_reset = BooleanVar(app)
         self.dark_mode_enabled = BooleanVar(app)
         self.resize_on_paste = BooleanVar(app)
+        self.image_to_new_layer = BooleanVar(app)
 
         # toolkit
         self.primary_color = StringVar(app, "#ffffff")
@@ -255,6 +256,12 @@ class RunAISettings(PropertyBase):
         self.available_extensions = ListVar(app, [])
         self.enabled_extensions = ListVar(app, [])
         self.active_extensions = ListVar(app, [])
+
+        self.primary_brush_opacity = IntVar(app, 255)
+        self.secondary_brush_opacity = IntVar(app, 255)
+
+        self.embeddings_path = StringVar(app, "")
+        self.extensions_path = StringVar(app, "")
 
     def set_namespace(self, namespace):
         self.namespace = namespace
