@@ -84,6 +84,7 @@ class RunAISettings(PropertyBase):
         self.do_settings_reset = BooleanVar(app)
         self.dark_mode_enabled = BooleanVar(app)
         self.resize_on_paste = BooleanVar(app)
+        self.image_to_new_layer = BooleanVar(app)
 
         # toolkit
         self.primary_color = StringVar(app, "#ffffff")
