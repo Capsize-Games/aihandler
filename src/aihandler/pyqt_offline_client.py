@@ -64,7 +64,7 @@ class OfflineClient(QtCore.QObject):
         super().__init__(
             parent=kwargs.get("parent", None)
         )
-        self.load_extensions = kwargs.get("load_extensions", True)
+        # self.load_extensions = kwargs.get("load_extensions", True)  TODO: extensions
         self.quit_event = BooleanVar()
         self.queue = queue.Queue()
         self.res_queue = queue.Queue()

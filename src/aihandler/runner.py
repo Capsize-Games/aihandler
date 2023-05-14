@@ -882,7 +882,7 @@ class SDRunner(BaseRunner):
                 nsfw_content_detected = output.nsfw_content_detected
             return image, nsfw_content_detected
 
-    active_extensions = []
+    # active_extensions = []  TODO: extensions
 
     def enhance_video(self, video_frames):
         """
@@ -949,6 +949,8 @@ class SDRunner(BaseRunner):
             print("failed to get output from txt2vid")
         return pil_image, None
 
+    '''
+    TODO: extensions
     def call_pipe_extension(self, **kwargs):
         """
         This calls the call_pipe method on all active extensions
@@ -958,6 +960,7 @@ class SDRunner(BaseRunner):
         for extension in self.active_extensions:
             self.pipe = extension.call_pipe(self.options, self.model_base_path, self.pipe, **kwargs)
         return self.pipe
+    '''
 
     def call_pipe(self, **kwargs):
         """
@@ -984,7 +987,7 @@ class SDRunner(BaseRunner):
                 callback=self.callback,
             )
         else:
-            self.pipe = self.call_pipe_extension(**kwargs)
+            # self.pipe = self.call_pipe_extension(**kwargs)  TODO: extensions
             return self.pipe(
                 prompt_embeds=prompt_embeds,
                 negative_prompt_embeds=negative_prompt_embeds,

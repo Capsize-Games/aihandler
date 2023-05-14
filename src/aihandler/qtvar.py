@@ -132,6 +132,7 @@ class DoubleVar(Var):
     my_signal = pyqtSignal(float)
 
 
+# TODO: extensions
 class ExtensionVar(Var):
     name = StringVar("")
     description = StringVar("")
