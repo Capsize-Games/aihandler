@@ -1,7 +1,8 @@
 import os
 import json
 from aihandler.database import RunAISettings
-from aihandler.qtvar import Var, BooleanVar, StringVar, IntVar, FloatVar, DoubleVar, ExtensionVar, ListVar
+from aihandler.qtvar import Var, BooleanVar, StringVar, IntVar, FloatVar, DoubleVar, ListVar
+# from aihandler.qtvar import ExtensionVar  TODO: extensions
 
 available_tools = [
     "",
@@ -72,6 +73,8 @@ class SettingsManager:
         settings = {}
         for key, value in self.settings.__dict__.items():
             if isinstance(value, Var):
+                """
+                TODO: extensions
                 if key in ["available_extensions", "active_extensions"]:
                     continue
                 elif key == "enabled_extensions":
@@ -81,6 +84,8 @@ class SettingsManager:
                     settings[key] = enabled_ext
                 else:
                     settings[key] = value.get()
+                """
+                settings[key] = value.get()
             elif type(value) in [list, dict, int, float, str, bool]:
                 settings[key] = value
         HOME = os.path.expanduser("~")

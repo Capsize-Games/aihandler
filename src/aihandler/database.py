@@ -253,15 +253,21 @@ class RunAISettings(PropertyBase):
         self.txt2vid_prompt_triggers = StringVar(app, "")
         self.txt2vid_n_samples = IntVar(app, 1)
 
+        """
+        TODO: extensions
         self.available_extensions = ListVar(app, [])
         self.enabled_extensions = ListVar(app, [])
         self.active_extensions = ListVar(app, [])
+        self.extensions_path = StringVar(app, "")
+        """
 
         self.primary_brush_opacity = IntVar(app, 255)
         self.secondary_brush_opacity = IntVar(app, 255)
 
         self.embeddings_path = StringVar(app, "")
-        self.extensions_path = StringVar(app, "")
+
+        self.lora_path = StringVar(app, "")
+        self.available_loras = {}
 
     def set_namespace(self, namespace):
         self.namespace = namespace

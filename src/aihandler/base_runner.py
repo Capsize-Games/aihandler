@@ -4,13 +4,13 @@ from aihandler.logger import logger
 from aihandler.qtvar import TQDMVar, ImageVar
 from aihandler.settings_manager import SettingsManager
 from aihandler.settings import AIRUNNER_ENVIRONMENT, LOG_LEVEL
-from aihandler.util import get_extensions_from_url, import_extension_class
+# from aihandler.util import get_extensions_from_url, import_extension_class  TODO: extensions
 
 
 class BaseRunner(QObject):
     _tqdm_var: TQDMVar
     tqdm_callback_signal = pyqtSignal()
-    active_extensions = []
+    # active_extensions = []  TODO: extensions
 
     @property
     def is_dev_env(self):
@@ -20,7 +20,7 @@ class BaseRunner(QObject):
         super().__init__()
         logger.set_level(LOG_LEVEL)
         self.app = kwargs.get("app", None)
-        self.load_extensions = kwargs.get("load_extensions", True)
+        # self.load_extensions = kwargs.get("load_extensions", True)  TODO: extensions
         self.settings_manager = kwargs.get("settings_manager", None)
         self._tqdm_var: TQDMVar = kwargs.get("tqdm_var", None)
         self._tqdm_callback = kwargs.get("tqdm_callback", None)
@@ -31,10 +31,15 @@ class BaseRunner(QObject):
         self._message_var = kwargs.get("message_var", None)
         self._message_handler = kwargs.get("message_handler", None)
         self.tqdm_callback_signal = pyqtSignal(int, int, str, object, object)
+        """
+        TODO: extensions
         if self.load_extensions:
             self.get_extensions_from_url()
             self.initialize_active_extensions()
+        """
 
+    '''
+    TODO: extensions
     def get_extensions_from_url(self):
         available_extensions = get_extensions_from_url(self)
         try:
@@ -78,6 +83,7 @@ class BaseRunner(QObject):
                 except TypeError:
                     pass
         self.active_extensions = extensions
+    '''
 
     def set_message(self, message):
         if self._message_handler:
