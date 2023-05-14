@@ -585,8 +585,9 @@ class SDRunner(BaseRunner):
                     use_auth_token=self.data["options"]["hf_token"],
                     **kwargs
                 )
-                if self.is_controlnet:
-                    self.load_controlnet_scheduler()
+
+            if self.is_controlnet:
+                self.load_controlnet_scheduler()
 
             if hasattr(self.pipe, "safety_checker") and self.do_nsfw_filter:
                 self.safety_checker = self.pipe.safety_checker
@@ -652,9 +653,7 @@ class SDRunner(BaseRunner):
                     logger.warning(e)
             self.settings_manager.settings.available_embeddings.set(", ".join(tokens))
 
-    def _apply_memory_efficient_settings(self):
-        logger.debug("Applying memory efficient settings")
-        # enhance with memory settings
+    def apply_last_channels(self):
         if self.use_last_channels:
             logger.debug("Enabling torch.channels_last")
             self.pipe.unet.to(memory_format=torch.channels_last)
@@ -662,6 +661,7 @@ class SDRunner(BaseRunner):
             logger.debug("Disabling torch.channels_last")
             self.pipe.unet.to(memory_format=torch.contiguous_format)
 
+    def apply_vae_slicing(self):
         if self.action not in ["img2img", "depth2img", "pix2pix", "outpaint", "superresolution", "controlnet"]:
             if self.use_enable_vae_slicing:
                 logger.debug("Enabling vae slicing")
@@ -670,13 +670,20 @@ class SDRunner(BaseRunner):
                 logger.debug("Disabling vae slicing")
                 self.pipe.disable_vae_slicing()
 
+    def apply_attention_slicing(self):
         if self.use_attention_slicing:
             logger.debug("Enabling attention slicing")
             self.pipe.enable_attention_slicing(slice_size="max")
         else:
             logger.debug("Disabling attention slicing")
             self.pipe.disable_attention_slicing()
+    def apply_tiled_vae(self):
+        from diffusers import UniPCMultistepScheduler
+        self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
+        self.pipe.enable_vae_tiling()
+        self.pipe.enable_xformers_memory_efficient_attention()
 
+    def apply_xformers(self):
         if self.use_xformers:
             from xformers.ops import MemoryEfficientAttentionFlashAttentionOp
             logger.debug("Enabling xformers")
@@ -687,6 +694,27 @@ class SDRunner(BaseRunner):
         else:
             logger.debug("Disabling xformers")
             self.pipe.disable_xformers_memory_efficient_attention()
+
+    def apply_cpu_offload(self):
+        if not self.use_enable_sequential_cpu_offload:
+            logger.debug("Moving to cuda")
+            self.pipe.to("cuda") if self.cuda_is_available else None
+        else:
+            logger.debug("Enabling sequential cpu offload")
+            self.pipe.enable_sequential_cpu_offload()
+
+    def apply_model_offload(self):
+        self.pipe.enable_model_cpu_offload()
+
+    def _apply_memory_efficient_settings(self):
+        logger.debug("Applying memory efficient settings")
+        self.apply_last_channels()
+        self.apply_vae_slicing()
+        self.apply_cpu_offload()
+        self.apply_model_offload()
+        self.apply_attention_slicing()
+        self.apply_tiled_vae()
+        self.apply_xformers()
 
     def _initialize(self):
         if not self.initialized or self.reload_model:
@@ -845,12 +873,7 @@ class SDRunner(BaseRunner):
         logger.info(f"Load safety checker")
         self.load_safety_checker(self.action)
 
-        if not self.use_enable_sequential_cpu_offload:
-            logger.debug("Moving to cuda")
-            self.pipe.to("cuda") if self.cuda_is_available else None
-        else:
-            logger.debug("Enabling sequential cpu offload")
-            self.pipe.enable_sequential_cpu_offload()
+        # self.apply_cpu_offload()
         try:
             if self.is_controlnet:
                 logger.info(f"Setting up controlnet")
