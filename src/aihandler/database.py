@@ -266,6 +266,9 @@ class RunAISettings(PropertyBase):
 
         self.embeddings_path = StringVar(app, "")
 
+        self.lora_path = StringVar(app, "")
+        self.available_loras = {}
+
     def set_namespace(self, namespace):
         self.namespace = namespace
 

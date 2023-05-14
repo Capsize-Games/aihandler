@@ -132,6 +132,31 @@ class DoubleVar(Var):
     my_signal = pyqtSignal(float)
 
 
+class LoraVar(Var):
+    my_signal = pyqtSignal(str, float, bool)
+
+    def __init__(self, app=None, name="", scale=1.0, enabled=False):
+        self.name = StringVar("")
+        self.scale = FloatVar(1.0)
+        self.enabled = BooleanVar(False)
+
+        super().__init__(app, None)
+
+        self.name.set(name, skip_save=True)
+        self.scale.set(scale, skip_save=True)
+        self.enabled.set(enabled, skip_save=True)
+
+        self.name.my_signal.connect(self.emit)
+        self.scale.my_signal.connect(self.emit)
+        self.enabled.my_signal.connect(self.emit)
+
+    def emit(self):
+        name = self.name.get() if self.name.get() is not None else ""
+        scale = self.scale.get() if self.scale.get() is not None else 1.0
+        enabled = self.enabled.get() if self.enabled.get() is not None else False
+        self.my_signal.emit(name, scale, enabled)
+
+
 # TODO: extensions
 class ExtensionVar(Var):
     name = StringVar("")
