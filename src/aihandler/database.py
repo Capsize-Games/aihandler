@@ -103,7 +103,10 @@ class RunAISettings(PropertyBase):
         self.use_cudnn_benchmark = BooleanVar(app, True)
         self.use_enable_vae_slicing = BooleanVar(app, True)
         self.use_xformers = BooleanVar(app, True)
+        self.use_tiled_vae = BooleanVar(app, False)
         self.enable_model_cpu_offload = BooleanVar(app, False)
+        self.use_accelerated_transformers = BooleanVar(app, True)
+        self.use_torch_compile = BooleanVar(app, True)
 
         # size settings
         self.working_width = IntVar(app, DEFAULT_WORKING_SIZE[0])
