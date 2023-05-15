@@ -604,8 +604,6 @@ class SDRunner(BaseRunner):
                 logger.debug("Loading from diffusers pipeline")
                 if self.is_controlnet:
                     kwargs["controlnet"] = self.load_controlnet()
-                print("x"*80)
-                print(kwargs)
                 self.pipe = self.action_diffuser.from_pretrained(
                     self.model_path,
                     local_files_only=self.local_files_only,
@@ -725,9 +723,23 @@ class SDRunner(BaseRunner):
             from diffusers.models.attention_processor import AttnProcessor2_0
             self.pipe.unet.set_attn_processor(AttnProcessor2_0())
 
+    def save_pipeline(self):
+        if self.use_torch_compile:
+            file_path = os.path.join(os.path.join(self.model_base_path, self.model_path, "compiled"))
+            if not os.path.exists(file_path):
+                os.makedirs(file_path)
+            torch.save(self.pipe.unet.state_dict(), os.path.join(file_path, "unet.pt"))
+
     def apply_torch_compile(self):
         if self.use_torch_compile:
+            logger.debug("Compiling torch model")
             self.pipe.unet = torch.compile(self.pipe.unet)
+        # load unet state_dict from disc
+        # file_path = os.path.join(os.path.join(self.model_base_path, self.model_path, "compiled"))
+        # if os.path.exists(file_path):
+        #     logger.debug("Loading compiled torch model")
+        #     state_dict = torch.load(os.path.join(file_path, "unet.pt"), map_location="cpu")
+        #     self.pipe.unet.state_dict = state_dict
 
     def move_pipe_to_cuda(self):
         if not self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
@@ -1461,6 +1473,7 @@ class SDRunner(BaseRunner):
                     "data": data,
                     "nsfw_content_detected": nsfw_content_detected == True,
                 })
+            # self.save_pipeline()
 
     def final_callback(self):
         total = int(self.num_inference_steps * self.strength)
