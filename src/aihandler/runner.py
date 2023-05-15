@@ -348,6 +348,22 @@ class SDRunner(BaseRunner):
         self._use_xformers = value
 
     @property
+    def use_accelerated_transformers(self):
+        return self._use_accelerated_transformers
+
+    @use_accelerated_transformers.setter
+    def use_accelerated_transformers(self, value):
+        self._use_accelerated_transformers = value
+
+    @property
+    def use_torch_compile(self):
+        return self._use_torch_compile
+
+    @use_torch_compile.setter
+    def use_torch_compile(self, value):
+        self._use_torch_compile = value
+
+    @property
     def use_tiled_vae(self):
         return self._use_tiled_vae
 
@@ -699,15 +715,19 @@ class SDRunner(BaseRunner):
     def apply_xformers(self):
         if self.use_xformers:
             from xformers.ops import MemoryEfficientAttentionFlashAttentionOp
-            # logger.debug("Enabling xformers")
-            # self.pipe.enable_xformers_memory_efficient_attention(
-            #     attention_op=MemoryEfficientAttentionFlashAttentionOp)
-            # self.pipe.vae.enable_xformers_memory_efficient_attention(
-            #     attention_op=None)
             self.pipe.enable_xformers_memory_efficient_attention()
         else:
             logger.debug("Disabling xformers")
             self.pipe.disable_xformers_memory_efficient_attention()
+
+    def apply_accelerated_transformers(self):
+        if self.use_accelerated_transformers:
+            from diffusers.models.attention_processor import AttnProcessor2_0
+            self.pipe.unet.set_attn_processor(AttnProcessor2_0())
+
+    def apply_torch_compile(self):
+        if self.use_torch_compile:
+            self.pipe.unet = torch.compile(self.pipe.unet)
 
     def move_pipe_to_cuda(self):
         if not self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
@@ -740,6 +760,8 @@ class SDRunner(BaseRunner):
         self.apply_attention_slicing()
         self.apply_tiled_vae()
         self.apply_xformers()
+        self.apply_accelerated_transformers()
+        self.apply_torch_compile()
 
     def _initialize(self):
         if not self.initialized or self.reload_model:
@@ -869,6 +891,8 @@ class SDRunner(BaseRunner):
             logger.debug("Reloading model based on xformers")
             self.reload_model = True
         self.use_xformers = use_xformers
+        self.use_accelerated_transformers = options.get("use_accelerated_transformers", True) == True
+        self.use_torch_compile = options.get("use_torch_compile", True) == True
         # print logger.info of all memory settings in use
         logger.debug("Memory settings:")
         logger.debug(f"  use_last_channels: {self.use_last_channels}")
@@ -880,6 +904,8 @@ class SDRunner(BaseRunner):
         logger.debug(f"  use_cudnn_benchmark: {self.use_cudnn_benchmark}")
         logger.debug(f"  use_enable_vae_slicing: {self.use_enable_vae_slicing}")
         logger.debug(f"  use_xformers: {self.use_xformers}")
+        logger.debug(f"  use_accelerated_transformers: {self.use_accelerated_transformers}")
+        logger.debug(f"  use_torch_compile: {self.use_torch_compile}")
 
         self.options = options
 
@@ -984,6 +1010,8 @@ class SDRunner(BaseRunner):
                     "use_cudnn_benchmark": self.use_cudnn_benchmark,
                     "use_enable_vae_slicing": self.use_enable_vae_slicing,
                     "use_xformers": self.use_xformers,
+                    "use_accelerated_transformers": self.use_accelerated_transformers,
+                    "use_torch_compile": self.use_torch_compile,
                     "use_tiled_vae": self.use_tiled_vae,
                 }
             }, image_var=None, use_callback=False)
