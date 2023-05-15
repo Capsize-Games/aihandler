@@ -731,9 +731,10 @@ class SDRunner(BaseRunner):
             torch.save(self.pipe.unet.state_dict(), os.path.join(file_path, "unet.pt"))
 
     def apply_torch_compile(self):
-        if self.use_torch_compile:
-            logger.debug("Compiling torch model")
-            self.pipe.unet = torch.compile(self.pipe.unet)
+        return
+        # if self.use_torch_compile:
+        #     logger.debug("Compiling torch model")
+        #     self.pipe.unet = torch.compile(self.pipe.unet)
         # load unet state_dict from disc
         # file_path = os.path.join(os.path.join(self.model_base_path, self.model_path, "compiled"))
         # if os.path.exists(file_path):
