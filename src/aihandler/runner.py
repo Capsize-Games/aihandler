@@ -598,7 +598,7 @@ class SDRunner(BaseRunner):
         embeddings_folder = os.path.join(self.model_base_path, "embeddings")
         self.load_learned_embed_in_clip(embeddings_folder)
 
-        self._apply_memory_efficient_settings()
+        self.apply_memory_efficient_settings()
 
     def load_learned_embed_in_clip(self, learned_embeds_path):
         if self.embeds_loaded:
@@ -706,7 +706,7 @@ class SDRunner(BaseRunner):
     def apply_model_offload(self):
         self.pipe.enable_model_cpu_offload()
 
-    def _apply_memory_efficient_settings(self):
+    def apply_memory_efficient_settings(self):
         logger.debug("Applying memory efficient settings")
         self.apply_last_channels()
         self.apply_vae_slicing()
@@ -1378,7 +1378,7 @@ class SDRunner(BaseRunner):
             self.move_models_to_cpu(self.action)
             self._clear_memory()
 
-        self._apply_memory_efficient_settings()
+        self.apply_memory_efficient_settings()
         if self.is_txt2vid:
             total_to_generate = 1
         else:
