@@ -11,8 +11,7 @@ import torch
 import io
 from aihandler.settings import LOG_LEVEL
 from aihandler.logger import logger
-import logging
-logging.disable(LOG_LEVEL)
+logger.set_level(logger.DEBUG)
 from PIL import Image
 from controlnet_aux import HEDdetector, MLSDdetector, OpenposeDetector
 from compel import Compel
@@ -61,6 +60,7 @@ class SDRunner(BaseRunner):
     use_cudnn_benchmark: bool = False
     use_enable_vae_slicing: bool = False
     use_xformers: bool = False
+    use_tiled_vae: bool = False
     reload_model: bool = False
     action: str = ""
     options: dict = {}
@@ -105,6 +105,7 @@ class SDRunner(BaseRunner):
     _use_cudnn_benchmark = True
     _use_enable_vae_slicing = True
     _use_xformers = False
+    _use_tiled_vae = False
     _settings = None
     _action = None
     do_change_scheduler = False
@@ -347,6 +348,14 @@ class SDRunner(BaseRunner):
         self._use_xformers = value
 
     @property
+    def use_tiled_vae(self):
+        return self._use_tiled_vae
+
+    @use_tiled_vae.setter
+    def use_tiled_vae(self, value):
+        self._use_tiled_vae = value
+
+    @property
     def action_diffuser(self):
         from diffusers import (
             DiffusionPipeline,
@@ -471,7 +480,7 @@ class SDRunner(BaseRunner):
             feature_extractor=pipeline.feature_extractor,
             requires_safety_checker=self.do_nsfw_filter,
         )
-        if self.data["options"]["enable_model_cpu_offload"]:
+        if self.enable_model_cpu_offload:
             pipeline.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
             pipeline.enable_model_cpu_offload()
         return pipeline
@@ -485,7 +494,7 @@ class SDRunner(BaseRunner):
         )
 
     def load_controlnet_scheduler(self):
-        if self.data["options"]["enable_model_cpu_offload"]:
+        if self.enable_model_cpu_offload:
             from diffusers import UniPCMultistepScheduler
             self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
             self.pipe.enable_model_cpu_offload()
@@ -579,6 +588,8 @@ class SDRunner(BaseRunner):
                 logger.debug("Loading from diffusers pipeline")
                 if self.is_controlnet:
                     kwargs["controlnet"] = self.load_controlnet()
+                print("x"*80)
+                print(kwargs)
                 self.pipe = self.action_diffuser.from_pretrained(
                     self.model_path,
                     local_files_only=self.local_files_only,
@@ -677,34 +688,47 @@ class SDRunner(BaseRunner):
         else:
             logger.debug("Disabling attention slicing")
             self.pipe.disable_attention_slicing()
+
     def apply_tiled_vae(self):
-        from diffusers import UniPCMultistepScheduler
-        self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
-        self.pipe.enable_vae_tiling()
-        self.pipe.enable_xformers_memory_efficient_attention()
+        if self.use_tiled_vae:
+            logger.debug("Applying tiled vae")
+            from diffusers import UniPCMultistepScheduler
+            self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
+            self.pipe.enable_vae_tiling()
 
     def apply_xformers(self):
         if self.use_xformers:
             from xformers.ops import MemoryEfficientAttentionFlashAttentionOp
-            logger.debug("Enabling xformers")
-            self.pipe.enable_xformers_memory_efficient_attention(
-                attention_op=MemoryEfficientAttentionFlashAttentionOp)
-            self.pipe.vae.enable_xformers_memory_efficient_attention(
-                attention_op=None)
+            # logger.debug("Enabling xformers")
+            # self.pipe.enable_xformers_memory_efficient_attention(
+            #     attention_op=MemoryEfficientAttentionFlashAttentionOp)
+            # self.pipe.vae.enable_xformers_memory_efficient_attention(
+            #     attention_op=None)
+            self.pipe.enable_xformers_memory_efficient_attention()
         else:
             logger.debug("Disabling xformers")
             self.pipe.disable_xformers_memory_efficient_attention()
 
-    def apply_cpu_offload(self):
-        if not self.use_enable_sequential_cpu_offload:
+    def move_pipe_to_cuda(self):
+        if not self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
             logger.debug("Moving to cuda")
             self.pipe.to("cuda") if self.cuda_is_available else None
-        else:
+
+    def move_pipe_to_cpu(self):
+        logger.debug("Moving to cpu")
+        self.pipe.to("cpu")
+
+    def apply_cpu_offload(self):
+        if self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
             logger.debug("Enabling sequential cpu offload")
+            # self.move_pipe_to_cpu()
             self.pipe.enable_sequential_cpu_offload()
 
     def apply_model_offload(self):
-        self.pipe.enable_model_cpu_offload()
+        if self.enable_model_cpu_offload and not self.use_enable_sequential_cpu_offload:
+            logger.debug("Enabling model cpu offload")
+            # self.move_pipe_to_cpu()
+            self.pipe.enable_model_cpu_offload()
 
     def apply_memory_efficient_settings(self):
         logger.debug("Applying memory efficient settings")
@@ -712,6 +736,7 @@ class SDRunner(BaseRunner):
         self.apply_vae_slicing()
         self.apply_cpu_offload()
         self.apply_model_offload()
+        self.move_pipe_to_cuda()
         self.apply_attention_slicing()
         self.apply_tiled_vae()
         self.apply_xformers()
@@ -815,7 +840,7 @@ class SDRunner(BaseRunner):
         self.pos_y = int(options.get(f"{action}_pos_y", self.pos_y))
         self.outpaint_box_rect = options.get(f"{action}_outpaint_box_rect", self.outpaint_box_rect)
         self.hf_token = ""
-        self.enable_model_cpu_offload = False
+        self.enable_model_cpu_offload = options.get(f"enable_model_cpu_offload", self.enable_model_cpu_offload)
         self.use_attention_slicing = self.use_attention_slicing
         self.use_tf32 = self.use_tf32
         self.use_cudnn_benchmark = self.use_cudnn_benchmark
@@ -839,6 +864,7 @@ class SDRunner(BaseRunner):
         self.use_cudnn_benchmark = options.get("use_cudnn_benchmark", True) == True
         self.use_enable_vae_slicing = options.get("use_enable_vae_slicing", True) == True
         use_xformers = options.get("use_xformers", True) == True
+        self.use_tiled_vae = options.get("use_tiled_vae", True) == True
         if self.is_pipe_loaded  and use_xformers != self.use_xformers:
             logger.debug("Reloading model based on xformers")
             self.reload_model = True
@@ -847,6 +873,8 @@ class SDRunner(BaseRunner):
         logger.debug("Memory settings:")
         logger.debug(f"  use_last_channels: {self.use_last_channels}")
         logger.debug(f"  use_enable_sequential_cpu_offload: {self.use_enable_sequential_cpu_offload}")
+        logger.debug(f"  enable_model_cpu_offload: {self.enable_model_cpu_offload}")
+        logger.debug(f"  use_tiled_vae: {self.use_tiled_vae}")
         logger.debug(f"  use_attention_slicing: {self.use_attention_slicing}")
         logger.debug(f"  use_tf32: {self.use_tf32}")
         logger.debug(f"  use_cudnn_benchmark: {self.use_cudnn_benchmark}")
@@ -956,6 +984,7 @@ class SDRunner(BaseRunner):
                     "use_cudnn_benchmark": self.use_cudnn_benchmark,
                     "use_enable_vae_slicing": self.use_enable_vae_slicing,
                     "use_xformers": self.use_xformers,
+                    "use_tiled_vae": self.use_tiled_vae,
                 }
             }, image_var=None, use_callback=False)
             if image:
@@ -1378,7 +1407,7 @@ class SDRunner(BaseRunner):
             self.move_models_to_cpu(self.action)
             self._clear_memory()
 
-        self.apply_memory_efficient_settings()
+        # self.apply_memory_efficient_settings()
         if self.is_txt2vid:
             total_to_generate = 1
         else:
