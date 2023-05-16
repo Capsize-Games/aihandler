@@ -34,6 +34,7 @@ def image_to_byte_array(image):
 
 class SDRunner(BaseRunner):
     _current_model: str = ""
+    _previous_model: str = ""
     scheduler_name: str = "ddpm"
     do_nsfw_filter: bool = False
     initialized: bool = False
@@ -476,6 +477,7 @@ class SDRunner(BaseRunner):
         :param skip_model: do not unload this model (typically the one currently in use)
         :return:
         """
+        logger.info("Unloading existing model")
         do_clear_memory = False
         for model_type in [
             "txt2img",
@@ -808,6 +810,8 @@ class SDRunner(BaseRunner):
     def _initialize(self):
         if not self.initialized or self.reload_model:
             logger.info("Initializing model")
+            if self._previous_model != self.current_model:
+                self.unload_unused_models(self.action)
             self._load_model()
             self.reload_model = False
             self.initialized = True
@@ -835,6 +839,8 @@ class SDRunner(BaseRunner):
         model_name = self.options.get(f"{self.action}_model", None)
 
         self.set_message(f"Loading model {model_name}")
+
+        self._previous_model = self.current_model
 
         if self._is_ckpt_file(model_name):
             self.current_model = model_name
@@ -1472,9 +1478,6 @@ class SDRunner(BaseRunner):
         self._prepare_model()
         self._initialize()
         self._change_scheduler()
-
-        if not self.use_enable_sequential_cpu_offload:
-            self.unload_unused_models(self.action)
 
         self.apply_memory_efficient_settings()
         if self.is_txt2vid:
