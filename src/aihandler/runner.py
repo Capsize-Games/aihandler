@@ -11,6 +11,8 @@ import torch
 import io
 from aihandler.settings import LOG_LEVEL
 from aihandler.logger import logger
+import logging
+logging.disable(LOG_LEVEL)
 logger.set_level(logger.DEBUG)
 from PIL import Image
 from controlnet_aux import HEDdetector, MLSDdetector, OpenposeDetector
@@ -414,7 +416,8 @@ class SDRunner(BaseRunner):
     @property
     def data_type(self):
         data_type = torch.half if self.cuda_is_available else torch.float
-        return torch.float16 if self.use_xformers else data_type
+        data_type = torch.half if self.use_xformers else data_type
+        return data_type
 
     @property
     def device(self):
@@ -461,20 +464,36 @@ class SDRunner(BaseRunner):
     def txt2vid_file(self):
         return os.path.join(self.model_base_path, "videos", f"{self.prompt}_{self.seed}.mp4")
 
-    def _clear_memory(self):
+    @staticmethod
+    def clear_memory():
+        logger.info("Clearing memory")
         torch.cuda.empty_cache()
         gc.collect()
 
-    def move_models_to_cpu(self, skip_model):
-        self.txt2img.to("cpu") if self.txt2img and skip_model != "txt2img" else None
-        self.img2img.to("cpu") if self.img2img and skip_model != "img2img" else None
-        self.pix2pix.to("cpu") if self.pix2pix and skip_model != "pix2pix" else None
-        self.outpaint.to("cpu") if self.outpaint and skip_model != "outpaint" else None
-        self.depth2img.to("cpu") if self.depth2img and skip_model != "depth2img" else None
-        self.superresolution.to("cpu") if self.superresolution and skip_model != "superresolution" else None
-        self.controlnet.to("cpu") if self.controlnet and skip_model != "controlnet" else None
-        self.txt2vid.to("cpu") if self.txt2vid and skip_model != "txt2vid" else None
-        self._clear_memory()
+    def unload_unused_models(self, skip_model=None):
+        """
+        Unload all models except the one specified in skip_model
+        :param skip_model: do not unload this model (typically the one currently in use)
+        :return:
+        """
+        do_clear_memory = False
+        for model_type in [
+            "txt2img",
+            "img2img",
+            "pix2pix",
+            "outpaint",
+            "depth2img",
+            "superresolution",
+            "controlnet",
+            "txt2vid",
+        ]:
+            if skip_model != model_type:
+                model = self.__getattribute__(model_type)
+                if model is not None:
+                    self.__setattr__(model_type, None)
+                    do_clear_memory = True
+        if do_clear_memory:
+            self.clear_memory()
 
     def load_controlnet_from_ckpt(self, pipeline):
         from diffusers import ControlNetModel, UniPCMultistepScheduler
@@ -588,7 +607,7 @@ class SDRunner(BaseRunner):
                 kwargs["variant"] = self.current_model_branch
 
         # move all models except for our current action to the CPU
-        #self.move_models_to_cpu(skip_model=self.action)
+        #self.unload_unused_models(skip_model=self.action)
 
         # special load case for img2img if txt2img is already loaded
         if self.is_img2img and self.txt2img is not None:
@@ -712,10 +731,11 @@ class SDRunner(BaseRunner):
 
     def apply_xformers(self):
         if self.use_xformers:
+            logger.info("Applying xformers")
             from xformers.ops import MemoryEfficientAttentionFlashAttentionOp
             self.pipe.enable_xformers_memory_efficient_attention()
         else:
-            logger.debug("Disabling xformers")
+            logger.info("Disabling xformers")
             self.pipe.disable_xformers_memory_efficient_attention()
 
     def apply_accelerated_transformers(self):
@@ -731,45 +751,54 @@ class SDRunner(BaseRunner):
             torch.save(self.pipe.unet.state_dict(), os.path.join(file_path, "unet.pt"))
 
     def apply_torch_compile(self):
+        """
+        Torch compile has limited support
+            - No support for Windows
+            - Fails with the compiled version of AI Runner
+        Because of this, we are disabling it until a better solution is found.
+
+        if self.use_torch_compile:
+            logger.debug("Compiling torch model")
+            self.pipe.unet = torch.compile(self.pipe.unet)
+        load unet state_dict from disc
+        file_path = os.path.join(os.path.join(self.model_base_path, self.model_path, "compiled"))
+        if os.path.exists(file_path):
+            logger.debug("Loading compiled torch model")
+            state_dict = torch.load(os.path.join(file_path, "unet.pt"), map_location="cpu")
+            self.pipe.unet.state_dict = state_dict
+        """
         return
-        # if self.use_torch_compile:
-        #     logger.debug("Compiling torch model")
-        #     self.pipe.unet = torch.compile(self.pipe.unet)
-        # load unet state_dict from disc
-        # file_path = os.path.join(os.path.join(self.model_base_path, self.model_path, "compiled"))
-        # if os.path.exists(file_path):
-        #     logger.debug("Loading compiled torch model")
-        #     state_dict = torch.load(os.path.join(file_path, "unet.pt"), map_location="cpu")
-        #     self.pipe.unet.state_dict = state_dict
 
-    def move_pipe_to_cuda(self):
+    def move_pipe_to_cuda(self, pipe):
         if not self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
-            logger.debug("Moving to cuda")
-            self.pipe.to("cuda") if self.cuda_is_available else None
+            logger.info("Moving to cuda")
+            pipe.to("cuda", torch.half) if self.cuda_is_available else None
+        return pipe
 
-    def move_pipe_to_cpu(self):
+    def move_pipe_to_cpu(self, pipe):
         logger.debug("Moving to cpu")
-        self.pipe.to("cpu")
+        pipe.to("cpu", torch.float32)
+        return pipe
 
     def apply_cpu_offload(self):
         if self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
             logger.debug("Enabling sequential cpu offload")
-            # self.move_pipe_to_cpu()
+            self.pipe = self.move_pipe_to_cpu(self.pipe)
             self.pipe.enable_sequential_cpu_offload()
 
     def apply_model_offload(self):
         if self.enable_model_cpu_offload and not self.use_enable_sequential_cpu_offload:
             logger.debug("Enabling model cpu offload")
-            # self.move_pipe_to_cpu()
+            self.pipe = self.move_pipe_to_cpu(self.pipe)
             self.pipe.enable_model_cpu_offload()
 
     def apply_memory_efficient_settings(self):
-        logger.debug("Applying memory efficient settings")
+        logger.info("Applying memory efficient settings")
         self.apply_last_channels()
         self.apply_vae_slicing()
         self.apply_cpu_offload()
         self.apply_model_offload()
-        self.move_pipe_to_cuda()
+        self.pipe = self.move_pipe_to_cuda(self.pipe)
         self.apply_attention_slicing()
         self.apply_tiled_vae()
         self.apply_xformers()
@@ -935,7 +964,7 @@ class SDRunner(BaseRunner):
         logger.info(f"Sampling {self.action}")
         self.set_message(f"Generating image...")
         # move everything but this action to the cpu
-        # self.move_models_to_cpu(self.action)
+        # self.unload_unused_models(self.action)
         #if not self.is_ckpt_model and not self.is_safetensors:
         logger.info(f"Load safety checker")
         self.load_safety_checker(self.action)
@@ -1445,10 +1474,9 @@ class SDRunner(BaseRunner):
         self._change_scheduler()
 
         if not self.use_enable_sequential_cpu_offload:
-            self.move_models_to_cpu(self.action)
-            self._clear_memory()
+            self.unload_unused_models(self.action)
 
-        # self.apply_memory_efficient_settings()
+        self.apply_memory_efficient_settings()
         if self.is_txt2vid:
             total_to_generate = 1
         else:
