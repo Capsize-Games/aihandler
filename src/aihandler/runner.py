@@ -60,7 +60,7 @@ class SDRunner(BaseRunner):
     enable_model_cpu_offload: bool = False
     use_attention_slicing: bool = False
     use_tf32: bool = False
-    use_cudnn_benchmark: bool = False
+    # use_cudnn_benchmark: bool = False
     use_enable_vae_slicing: bool = False
     use_xformers: bool = False
     use_tiled_vae: bool = False
@@ -105,7 +105,7 @@ class SDRunner(BaseRunner):
     _use_enable_sequential_cpu_offload = True
     _use_attention_slicing = True
     _use_tf32 = True
-    _use_cudnn_benchmark = True
+    # _use_cudnn_benchmark = True
     _use_enable_vae_slicing = True
     _use_xformers = False
     _use_tiled_vae = False
@@ -320,13 +320,13 @@ class SDRunner(BaseRunner):
     def use_tf32(self, value):
         self._use_tf32 = value
 
-    @property
-    def use_cudnn_benchmark(self):
-        return self._use_cudnn_benchmark
-
-    @use_cudnn_benchmark.setter
-    def use_cudnn_benchmark(self, value):
-        self._use_cudnn_benchmark = value
+    # @property
+    # def use_cudnn_benchmark(self):
+    #     return self._use_cudnn_benchmark
+    #
+    # @use_cudnn_benchmark.setter
+    # def use_cudnn_benchmark(self, value):
+    #     self._use_cudnn_benchmark = value
 
     @property
     def enable_vae_slicing(self):
@@ -719,7 +719,7 @@ class SDRunner(BaseRunner):
     def apply_attention_slicing(self):
         if self.use_attention_slicing:
             logger.debug("Enabling attention slicing")
-            self.pipe.enable_attention_slicing(slice_size="max")
+            self.pipe.enable_attention_slicing()
         else:
             logger.debug("Disabling attention slicing")
             self.pipe.disable_attention_slicing()
@@ -913,7 +913,7 @@ class SDRunner(BaseRunner):
         self.enable_model_cpu_offload = options.get(f"enable_model_cpu_offload", self.enable_model_cpu_offload)
         self.use_attention_slicing = self.use_attention_slicing
         self.use_tf32 = self.use_tf32
-        self.use_cudnn_benchmark = self.use_cudnn_benchmark
+        # self.use_cudnn_benchmark = self.use_cudnn_benchmark
         self.use_enable_vae_slicing = self.use_enable_vae_slicing
         self.use_xformers = self.use_xformers
 
@@ -931,7 +931,7 @@ class SDRunner(BaseRunner):
         self.use_enable_sequential_cpu_offload = cpu_offload
         self.use_attention_slicing = options.get("use_attention_slicing", True) == True
         self.use_tf32 = options.get("use_tf32", True) == True
-        self.use_cudnn_benchmark = options.get("use_cudnn_benchmark", True) == True
+        # self.use_cudnn_benchmark = options.get("use_cudnn_benchmark", True) == True
         self.use_enable_vae_slicing = options.get("use_enable_vae_slicing", True) == True
         use_xformers = options.get("use_xformers", True) == True
         self.use_tiled_vae = options.get("use_tiled_vae", True) == True
@@ -949,7 +949,7 @@ class SDRunner(BaseRunner):
         logger.debug(f"  use_tiled_vae: {self.use_tiled_vae}")
         logger.debug(f"  use_attention_slicing: {self.use_attention_slicing}")
         logger.debug(f"  use_tf32: {self.use_tf32}")
-        logger.debug(f"  use_cudnn_benchmark: {self.use_cudnn_benchmark}")
+        # logger.debug(f"  use_cudnn_benchmark: {self.use_cudnn_benchmark}")
         logger.debug(f"  use_enable_vae_slicing: {self.use_enable_vae_slicing}")
         logger.debug(f"  use_xformers: {self.use_xformers}")
         logger.debug(f"  use_accelerated_transformers: {self.use_accelerated_transformers}")
@@ -958,7 +958,7 @@ class SDRunner(BaseRunner):
         self.options = options
 
         torch.backends.cuda.matmul.allow_tf32 = self.use_tf32
-        torch.backends.cudnn.benchmark = self.use_cudnn_benchmark
+        # torch.backends.cudnn.benchmark = self.use_cudnn_benchmark
 
     def load_safety_checker(self, action):
         if not self.do_nsfw_filter:
@@ -1055,7 +1055,7 @@ class SDRunner(BaseRunner):
                     "enable_model_cpu_offload": self.enable_model_cpu_offload,
                     "use_attention_slicing": self.use_attention_slicing,
                     "use_tf32": self.use_tf32,
-                    "use_cudnn_benchmark": self.use_cudnn_benchmark,
+                    # "use_cudnn_benchmark": self.use_cudnn_benchmark,
                     "use_enable_vae_slicing": self.use_enable_vae_slicing,
                     "use_xformers": self.use_xformers,
                     "use_accelerated_transformers": self.use_accelerated_transformers,
