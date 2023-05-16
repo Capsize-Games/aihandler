@@ -5,12 +5,75 @@ from aihandler.settings import \
     DEFAULT_SCHEDULER, \
     DEFAULT_CANVAS_COLOR, \
     DEFAULT_GRID_COLOR, \
-    DEFAULT_WORKING_SIZE
-
-
+    DEFAULT_WORKING_SIZE, \
+    DEFAULT_BRUSH_PRIMARY_COLOR, \
+    DEFAULT_BRUSH_SECONDARY_COLOR
+DEFAULT_BRUSH_OPACITY = 255
+DEFAULT_GRID_SETTINGS = {
+    "line_color": DEFAULT_GRID_COLOR,
+    "line_width": 1,
+    "line_stipple": True,
+    "size": 64,
+    "show_grid": True,
+    "snap_to_grid": True,
+}
+DEFAULT_MEMORY_SETTINGS = {
+    "use_accelerated_transformers": True,
+    "use_xformers": True,
+    "use_attention_slicing": False,
+    "use_last_channels": False,
+    "use_enable_sequential_cpu_offload": False,
+    "enable_model_cpu_offload": False,
+    "use_tf32": True,
+    "use_enable_vae_slicing": False,
+    "use_tiled_vae": False,
+    "use_cudnn_benchmark": True,
+    "use_torch_compile": False
+}
+DEFAULT_GENERATOR_SETTINGS = {
+    "steps": 20,
+    "ddim_eta": 0.5,
+    "height": 512,
+    "width": 512,
+    "scale": 750,
+    "seed": 42,
+    "random_seed": True,
+    "model_var": DEFAULT_MODEL,
+    "scheduler_var": DEFAULT_SCHEDULER,
+    "prompt_triggers": "",
+    "strength": 50,
+    "image_guidance_scale": 150,
+    "n_samples": 1,
+}
+GENERATOR_TYPES = {
+    "steps": IntVar,
+    "ddim_eta": DoubleVar,
+    "height": IntVar,
+    "width": IntVar,
+    "scale": DoubleVar,
+    "seed": IntVar,
+    "random_seed": BooleanVar,
+    "model_var": StringVar,
+    "scheduler_var": StringVar,
+    "prompt_triggers": StringVar,
+    "strength": DoubleVar,
+    "image_guidance_scale": DoubleVar,
+    "n_samples": IntVar,
+}
 USER = os.environ.get("USER", "")
 default_model_path = os.path.join("/", "home", USER, "stablediffusion")
-
+GENERATORS = [
+    "txt2img",
+    "img2img",
+    "riffusion",
+    "pix2pix",
+    "inpaint",
+    "outpaint",
+    "depth2img",
+    "superresolution",
+    "controlnet",
+    "txt2vid",
+]
 
 class PropertyBase:
     """
@@ -87,8 +150,8 @@ class RunAISettings(PropertyBase):
         self.image_to_new_layer = BooleanVar(app)
 
         # toolkit
-        self.primary_color = StringVar(app, "#ffffff")
-        self.secondary_color = StringVar(app, "#000000")
+        self.primary_color = StringVar(app, DEFAULT_BRUSH_PRIMARY_COLOR)
+        self.secondary_color = StringVar(app, DEFAULT_BRUSH_SECONDARY_COLOR)
         self.blur_radius = FloatVar(app, 0.0)
         self.cyan_red = IntVar(app, 0.0)
         self.magenta_green = IntVar(app, 0.0)
@@ -96,17 +159,17 @@ class RunAISettings(PropertyBase):
         self.current_tool = StringVar(app, "")
 
         # stable diffusion memory options
-        self.use_last_channels = BooleanVar(app, True)
-        self.use_enable_sequential_cpu_offload = BooleanVar(app, False)
-        self.use_attention_slicing = BooleanVar(app, True)
-        self.use_tf32 = BooleanVar(app, True)
-        self.use_cudnn_benchmark = BooleanVar(app, True)
-        self.use_enable_vae_slicing = BooleanVar(app, True)
-        self.use_xformers = BooleanVar(app, True)
-        self.use_tiled_vae = BooleanVar(app, False)
-        self.enable_model_cpu_offload = BooleanVar(app, False)
-        self.use_accelerated_transformers = BooleanVar(app, True)
-        self.use_torch_compile = BooleanVar(app, True)
+        self.use_last_channels = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_last_channels"])
+        self.use_enable_sequential_cpu_offload = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_enable_sequential_cpu_offload"])
+        self.use_attention_slicing = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_attention_slicing"])
+        self.use_tf32 = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_tf32"])
+        self.use_cudnn_benchmark = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_cudnn_benchmark"])
+        self.use_enable_vae_slicing = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_enable_vae_slicing"])
+        self.use_xformers = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_xformers"])
+        self.use_tiled_vae = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_tiled_vae"])
+        self.enable_model_cpu_offload = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["enable_model_cpu_offload"])
+        self.use_accelerated_transformers = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_accelerated_transformers"])
+        self.use_torch_compile = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_torch_compile"])
 
         # size settings
         self.working_width = IntVar(app, DEFAULT_WORKING_SIZE[0])
@@ -120,141 +183,16 @@ class RunAISettings(PropertyBase):
 
         self.mask_brush_size = IntVar(app, 10)
 
-        self.line_color = StringVar(app, DEFAULT_GRID_COLOR)
-        self.line_width = IntVar(app, 1)
-        self.line_stipple = BooleanVar(app, True)
-        self.size = IntVar(app, 64)
-        self.show_grid = BooleanVar(app, True)
-        self.snap_to_grid = BooleanVar(app, True)
+        self.line_color = StringVar(app, DEFAULT_GRID_SETTINGS["line_color"])
+        self.line_width = IntVar(app, DEFAULT_GRID_SETTINGS["line_width"])
+        self.line_stipple = BooleanVar(app, DEFAULT_GRID_SETTINGS["line_stipple"])
+        self.size = IntVar(app, DEFAULT_GRID_SETTINGS["size"])
+        self.show_grid = BooleanVar(app, DEFAULT_GRID_SETTINGS["show_grid"])
+        self.snap_to_grid = BooleanVar(app, DEFAULT_GRID_SETTINGS["snap_to_grid"])
 
-        default_scale = 750
-        default_strength = 50
-        default_image_guidance_scale = 150
-
-        self.txt2img_steps = IntVar(app, 20)
-        self.txt2img_ddim_eta = DoubleVar(app, 0.5)
-        self.txt2img_height = IntVar(app, 512)
-        self.txt2img_width = IntVar(app, 512)
-        self.txt2img_scale = DoubleVar(app, default_scale)
-        self.txt2img_seed = IntVar(app, 42)
-        self.txt2img_random_seed = BooleanVar(app)
-        self.txt2img_model_var = StringVar(app, DEFAULT_MODEL)
-        self.txt2img_scheduler_var = StringVar(app, DEFAULT_SCHEDULER)
-        self.txt2img_prompt_triggers = StringVar(app, "")
-        self.txt2img_n_samples = IntVar(app, 1)
-
-        self.img2img_steps = IntVar(app, 20)
-        self.img2img_ddim_eta = DoubleVar(app, 0.0)
-        self.img2img_height = IntVar(app, 512)
-        self.img2img_width = IntVar(app, 512)
-        self.img2img_scale = DoubleVar(app, default_scale)
-        self.img2img_strength = DoubleVar(app, default_strength)
-        self.img2img_seed = IntVar(app, 42)
-        self.img2img_random_seed = BooleanVar(app)
-        self.img2img_model_var = StringVar(app, DEFAULT_MODEL)
-        self.img2img_scheduler_var = StringVar(app, DEFAULT_SCHEDULER)
-        self.img2img_prompt_triggers = StringVar(app, "")
-        self.img2img_n_samples = IntVar(app, 1)
-
-        self.riffusion_steps = IntVar(app, 20)
-        self.riffusion_ddim_eta = DoubleVar(app, 0.5)
-        self.riffusion_height = IntVar(app, 512)
-        self.riffusion_width = IntVar(app, 512)
-        self.riffusion_scale = DoubleVar(app, default_scale)
-        self.riffusion_seed = IntVar(app, 42)
-        self.riffusion_random_seed = BooleanVar(app)
-        self.riffusion_model_var = StringVar(app, DEFAULT_MODEL)
-        self.riffusion_scheduler_var = StringVar(app, DEFAULT_SCHEDULER)
-        self.riffusion_prompt_triggers = StringVar(app, "")
-        self.riffusion_n_samples = IntVar(app, 1)
-
-        self.pix2pix_steps = IntVar(app, 20)
-        self.pix2pix_ddim_eta = DoubleVar(app, 0.5)
-        self.pix2pix_height = IntVar(app, 512)
-        self.pix2pix_width = IntVar(app, 512)
-        self.pix2pix_scale = DoubleVar(app, default_scale)
-        self.pix2pix_image_guidance_scale = DoubleVar(app, default_image_guidance_scale)
-        self.pix2pix_strength = DoubleVar(app, default_strength)
-        self.pix2pix_seed = IntVar(app, 42)
-        self.pix2pix_random_seed = BooleanVar(app)
-        self.pix2pix_model_var = StringVar(app, DEFAULT_MODEL)
-        self.pix2pix_scheduler_var = StringVar(app, DEFAULT_SCHEDULER)
-        self.pix2pix_prompt_triggers = StringVar(app, "")
-        self.pix2pix_n_samples = IntVar(app, 1)
-
-        self.inpaint_steps = IntVar(app, 20)
-        self.inpaint_ddim_eta = DoubleVar(app, 0.5)
-        self.inpaint_height = IntVar(app, 512)
-        self.inpaint_width = IntVar(app, 512)
-        self.inpaint_scale = DoubleVar(app, default_scale)
-        self.inpaint_seed = IntVar(app, 42)
-        self.inpaint_random_seed = BooleanVar(app)
-        self.inpaint_model_var = StringVar(app, "Stable Diffusion Inpaint V2")
-        self.inpaint_scheduler_var = StringVar(app, DEFAULT_SCHEDULER)
-        self.inpaint_prompt_triggers = StringVar(app, "")
-        self.inpaint_n_samples = IntVar(app, 1)
-
-        self.outpaint_steps = IntVar(app, 20)
-        self.outpaint_ddim_eta = DoubleVar(app, 0.5)
-        self.outpaint_height = IntVar(app, 512)
-        self.outpaint_width = IntVar(app, 512)
-        self.outpaint_scale = DoubleVar(app, default_scale)
-        self.outpaint_seed = IntVar(app, 42)
-        self.outpaint_random_seed = BooleanVar(app)
-        self.outpaint_model_var = StringVar(app, "Stable Diffusion Inpaint V2")
-        self.outpaint_scheduler_var = StringVar(app, DEFAULT_SCHEDULER)
-        self.outpaint_prompt_triggers = StringVar(app, "")
-        self.outpaint_n_samples = IntVar(app, 1)
-
-        self.depth2img_steps = IntVar(app, 20)
-        self.depth2img_ddim_eta = DoubleVar(app, 0.5)
-        self.depth2img_height = IntVar(app, 512)
-        self.depth2img_width = IntVar(app, 512)
-        self.depth2img_scale = DoubleVar(app, default_scale)
-        self.depth2img_seed = IntVar(app, 42)
-        self.depth2img_random_seed = BooleanVar(app)
-        self.depth2img_model_var = StringVar(app, "Stable Diffusion Inpaint V2")
-        self.depth2img_scheduler_var = StringVar(app, DEFAULT_SCHEDULER)
-        self.depth2img_prompt_triggers = StringVar(app, "")
-        self.depth2img_n_samples = IntVar(app, 1)
-        self.depth2img_strength = DoubleVar(app, default_strength)
-
-        self.superresolution_steps = IntVar(app, 20)
-        self.superresolution_ddim_eta = DoubleVar(app, 0.5)
-        self.superresolution_height = IntVar(app, 512)
-        self.superresolution_width = IntVar(app, 512)
-        self.superresolution_scale = DoubleVar(app, default_scale)
-        self.superresolution_seed = IntVar(app, 42)
-        self.superresolution_random_seed = BooleanVar(app)
-        self.superresolution_model_var = StringVar(app, "Stable Diffusion Inpaint V2")
-        self.superresolution_scheduler_var = StringVar(app, DEFAULT_SCHEDULER)
-        self.superresolution_prompt_triggers = StringVar(app, "")
-        self.superresolution_n_samples = IntVar(app, 1)
-
-        self.controlnet_steps = IntVar(app, 20)
-        self.controlnet_ddim_eta = DoubleVar(app, 0.5)
-        self.controlnet_height = IntVar(app, 512)
-        self.controlnet_width = IntVar(app, 512)
-        self.controlnet_scale = DoubleVar(app, default_scale)
-        self.controlnet_seed = IntVar(app, 42)
-        self.controlnet_random_seed = BooleanVar(app)
-        self.controlnet_model_var = StringVar(app, "Stable Diffusion Inpaint V2")
-        self.controlnet_scheduler_var = StringVar(app, DEFAULT_SCHEDULER)
-        self.controlnet_prompt_triggers = StringVar(app, "")
-        self.controlnet_n_samples = IntVar(app, 1)
-        self.controlnet_strength = DoubleVar(app, default_strength)
-
-        self.txt2vid_steps = IntVar(app, 20)
-        self.txt2vid_ddim_eta = DoubleVar(app, 0.5)
-        self.txt2vid_height = IntVar(app, 512)
-        self.txt2vid_width = IntVar(app, 512)
-        self.txt2vid_scale = DoubleVar(app, default_scale)
-        self.txt2vid_seed = IntVar(app, 42)
-        self.txt2vid_random_seed = BooleanVar(app)
-        self.txt2vid_model_var = StringVar(app, DEFAULT_MODEL)
-        self.txt2vid_scheduler_var = StringVar(app, DEFAULT_SCHEDULER)
-        self.txt2vid_prompt_triggers = StringVar(app, "")
-        self.txt2vid_n_samples = IntVar(app, 1)
+        for key, value in DEFAULT_GENERATOR_SETTINGS.items():
+            for generator in GENERATORS:
+                self.__dict__[f"{generator}_{key}"] = GENERATOR_TYPES[key](app, value)
 
         """
         TODO: extensions
@@ -264,16 +202,59 @@ class RunAISettings(PropertyBase):
         self.extensions_path = StringVar(app, "")
         """
 
-        self.primary_brush_opacity = IntVar(app, 255)
-        self.secondary_brush_opacity = IntVar(app, 255)
+        self.primary_brush_opacity = IntVar(app, DEFAULT_BRUSH_OPACITY)
+        self.secondary_brush_opacity = IntVar(app, DEFAULT_BRUSH_OPACITY)
 
         self.embeddings_path = StringVar(app, "")
 
         self.lora_path = StringVar(app, "")
         self.available_loras = {}
 
+        self.force_reset = BooleanVar(app, True)
+
     def set_namespace(self, namespace):
         self.namespace = namespace
 
     def reset_settings_to_default(self):
-        self.initialize()
+        # pasting / generating
+        self.paste_at_working_size.set(False)
+        self.outpaint_on_paste.set(False)
+        self.resize_on_paste.set(False)
+        self.image_to_new_layer.set(False)
+
+        # misc
+        self.nsfw_filter.set(True)
+        self.allow_hf_downloads.set(True)
+        self.fast_load_last_session.set(False)
+        self.do_settings_reset.set(False)
+
+        # colors and theme
+        self.dark_mode_enabled.set(False)
+        self.canvas_color.set(DEFAULT_CANVAS_COLOR)
+        self.primary_color.set(DEFAULT_BRUSH_PRIMARY_COLOR)
+        self.secondary_color.set(DEFAULT_BRUSH_SECONDARY_COLOR)
+        self.primary_brush_opacity.set(DEFAULT_BRUSH_OPACITY)
+        self.secondary_brush_opacity.set(DEFAULT_BRUSH_OPACITY)
+
+        # grid settings
+        self.line_color.set(DEFAULT_GRID_SETTINGS["line_color"])
+        self.line_width.set(DEFAULT_GRID_SETTINGS["line_width"])
+        self.line_stipple.set(DEFAULT_GRID_SETTINGS["line_stipple"])
+        self.size.set(DEFAULT_GRID_SETTINGS["size"])
+        self.show_grid.set(DEFAULT_GRID_SETTINGS["show_grid"])
+        self.snap_to_grid.set(DEFAULT_GRID_SETTINGS["snap_to_grid"])
+
+        # memory
+        for key, value in DEFAULT_MEMORY_SETTINGS.items():
+            getattr(self, key).set(value)
+
+        # size
+        self.working_width.set(DEFAULT_WORKING_SIZE[0])
+        self.working_height.set(DEFAULT_WORKING_SIZE[1])
+
+        # generator
+        # iterate over DEFAULT_GEENRATOR_SETTINGS
+        for key, value in DEFAULT_GENERATOR_SETTINGS.items():
+            for generator in GENERATORS:
+                if hasattr(self, f"{generator}_{key}"):
+                    setattr(self, f"{generator}_{key}", GENERATOR_TYPES[key](self.app, value))
