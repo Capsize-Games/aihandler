@@ -135,6 +135,7 @@ class SettingsManager:
 
     def reset_settings_to_default(self):
         self.settings.reset_settings_to_default()
+        self.save_settings()
 
     def set_tool(self, val):
         self.settings.current_tool.set(val)
