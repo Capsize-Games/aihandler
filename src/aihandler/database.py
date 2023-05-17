@@ -148,6 +148,7 @@ class RunAISettings(PropertyBase):
         self.dark_mode_enabled = BooleanVar(app)
         self.resize_on_paste = BooleanVar(app)
         self.image_to_new_layer = BooleanVar(app)
+        self.auto_export_images = BooleanVar(app)
 
         # toolkit
         self.primary_color = StringVar(app, DEFAULT_BRUSH_PRIMARY_COLOR)
@@ -211,6 +212,7 @@ class RunAISettings(PropertyBase):
         self.available_loras = {}
 
         self.force_reset = BooleanVar(app, True)
+        self.image_path = StringVar(app, "")
 
     def set_namespace(self, namespace):
         self.namespace = namespace
@@ -221,6 +223,7 @@ class RunAISettings(PropertyBase):
         self.outpaint_on_paste.set(False)
         self.resize_on_paste.set(False)
         self.image_to_new_layer.set(False)
+        self.auto_export_images.set(False)
 
         # misc
         self.nsfw_filter.set(True)
