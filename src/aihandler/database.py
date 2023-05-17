@@ -148,7 +148,6 @@ class RunAISettings(PropertyBase):
         self.dark_mode_enabled = BooleanVar(app)
         self.resize_on_paste = BooleanVar(app)
         self.image_to_new_layer = BooleanVar(app)
-        self.auto_export_images = BooleanVar(app)
 
         # toolkit
         self.primary_color = StringVar(app, DEFAULT_BRUSH_PRIMARY_COLOR)
@@ -212,7 +211,27 @@ class RunAISettings(PropertyBase):
         self.available_loras = {}
 
         self.force_reset = BooleanVar(app, True)
+
+        # Image export preferences
+        self.auto_export_images = BooleanVar(app)
         self.image_path = StringVar(app, "")
+        self.image_export_type = StringVar(app, "png")
+
+        ## Image export preferences metadata
+        self.image_export_metadata_prompt = BooleanVar(app)
+        self.image_export_metadata_negative_prompt = BooleanVar(app)
+        self.image_export_metadata_action = BooleanVar(app)
+        self.image_export_metadata_scale = BooleanVar(app)
+        self.image_export_metadata_seed = BooleanVar(app)
+        self.image_export_metadata_steps = BooleanVar(app)
+        self.image_export_metadata_ddim_eta = BooleanVar(app)
+        self.image_export_metadata_iterations = BooleanVar(app)
+        self.image_export_metadata_samples = BooleanVar(app)
+        self.image_export_metadata_model = BooleanVar(app)
+        self.image_export_metadata_model_branch = BooleanVar(app)
+        self.image_export_metadata_scheduler = BooleanVar(app)
+        self.export_metadata = BooleanVar(app)
+        self.import_metadata = BooleanVar(app)
 
     def set_namespace(self, namespace):
         self.namespace = namespace
@@ -223,7 +242,6 @@ class RunAISettings(PropertyBase):
         self.outpaint_on_paste.set(False)
         self.resize_on_paste.set(False)
         self.image_to_new_layer.set(False)
-        self.auto_export_images.set(False)
 
         # misc
         self.nsfw_filter.set(True)
@@ -261,3 +279,20 @@ class RunAISettings(PropertyBase):
             for generator in GENERATORS:
                 if hasattr(self, f"{generator}_{key}"):
                     setattr(self, f"{generator}_{key}", GENERATOR_TYPES[key](self.app, value))
+
+        # Image export preferences
+        self.auto_export_images.set(False)
+        self.image_export_metadata_prompt.set(False)
+        self.image_export_metadata_negative_prompt.set(False)
+        self.image_export_metadata_action.set(False)
+        self.image_export_metadata_scale.set(False)
+        self.image_export_metadata_seed.set(False)
+        self.image_export_metadata_steps.set(False)
+        self.image_export_metadata_ddim_eta.set(False)
+        self.image_export_metadata_iterations.set(False)
+        self.image_export_metadata_samples.set(False)
+        self.image_export_metadata_model.set(False)
+        self.image_export_metadata_model_branch.set(False)
+        self.image_export_metadata_scheduler.set(False)
+        self.export_metadata.set(False)
+        self.import_metadata.set(False)

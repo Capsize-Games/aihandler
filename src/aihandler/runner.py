@@ -719,7 +719,10 @@ class SDRunner(BaseRunner):
             logger.debug("Applying tiled vae")
             from diffusers import UniPCMultistepScheduler
             self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
-            self.pipe.enable_vae_tiling()
+            try:
+                self.pipe.enable_vae_tiling()
+            except AttributeError:
+                logger.warning("Tiled vae not supported for this model")
 
     def apply_xformers(self):
         if self.use_xformers:
