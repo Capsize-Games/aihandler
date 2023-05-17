@@ -220,7 +220,6 @@ class RunAISettings(PropertyBase):
         ## Image export preferences metadata
         self.image_export_metadata_prompt = BooleanVar(app)
         self.image_export_metadata_negative_prompt = BooleanVar(app)
-        self.image_export_metadata_action = BooleanVar(app)
         self.image_export_metadata_scale = BooleanVar(app)
         self.image_export_metadata_seed = BooleanVar(app)
         self.image_export_metadata_steps = BooleanVar(app)
@@ -284,7 +283,6 @@ class RunAISettings(PropertyBase):
         self.auto_export_images.set(False)
         self.image_export_metadata_prompt.set(False)
         self.image_export_metadata_negative_prompt.set(False)
-        self.image_export_metadata_action.set(False)
         self.image_export_metadata_scale.set(False)
         self.image_export_metadata_seed.set(False)
         self.image_export_metadata_steps.set(False)
