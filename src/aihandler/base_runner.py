@@ -92,10 +92,14 @@ class BaseRunner(QObject):
             self._message_var.set(message)
 
     def error_handler(self, error):
+        message = str(error)
+        if "got an unexpected keyword argument 'image'" in message and self.action in ["outpaint", "pix2pix", "depth2img"]:
+            message = f"This model does not support {self.action}"
+        logger.error(error)
         if self._error_handler:
-            self._error_handler(error)
+            self._error_handler(message)
         elif self._error_var:
-            self._error_var.set(str(error))
+            self._error_var.set(str(message))
 
     def tqdm_callback(self, step, total, action, image=None, data=None):
         if self._tqdm_callback:

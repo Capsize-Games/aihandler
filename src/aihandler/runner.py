@@ -979,9 +979,7 @@ class SDRunner(BaseRunner):
             logger.info(f"Generating image")
             output = self.call_pipe(**kwargs)
         except Exception as e:
-            logger.warning("something went wrong")
-            print(e)
-            logger.error(e)
+            self.error_handler(e)
             if "`flshattF` is not supported because" in str(e):
                 # try again
                 logger.info("Disabling xformers and trying again")
@@ -996,8 +994,9 @@ class SDRunner(BaseRunner):
         else:
             image = output.images[0] if output else None
             nsfw_content_detected = None
-            if self.action_has_safety_checker:
-                nsfw_content_detected = output.nsfw_content_detected
+            if output:
+                if self.action_has_safety_checker:
+                    nsfw_content_detected = output.nsfw_content_detected
             return image, nsfw_content_detected
 
     # active_extensions = []  TODO: extensions
@@ -1418,7 +1417,7 @@ class SDRunner(BaseRunner):
                 return self._sample_diffusers_model(data)
             else:
                 traceback.print_exc()
-                logger.error("Something went wrong while generating image")
+                self.error_handler("Something went wrong while generating image")
                 logger.error(e)
 
         self.final_callback()
