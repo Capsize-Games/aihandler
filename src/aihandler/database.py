@@ -231,6 +231,7 @@ class RunAISettings(PropertyBase):
         self.image_export_metadata_scheduler = BooleanVar(app)
         self.export_metadata = BooleanVar(app)
         self.import_metadata = BooleanVar(app)
+        self.latest_version_check = BooleanVar(app, True)
 
     def set_namespace(self, namespace):
         self.namespace = namespace
