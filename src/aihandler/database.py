@@ -180,6 +180,9 @@ class RunAISettings(PropertyBase):
 
         # model settings
         self.model_base_path = StringVar(app, default_model_path)
+        self.depth2img_model_path = StringVar(app)
+        self.pix2pix_model_path = StringVar(app)
+        self.outpaint_model_path = StringVar(app)
 
         self.mask_brush_size = IntVar(app, 10)
 
