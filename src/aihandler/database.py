@@ -31,6 +31,8 @@ DEFAULT_MEMORY_SETTINGS = {
     "use_torch_compile": False
 }
 DEFAULT_GENERATOR_SETTINGS = {
+    "prompt": "",
+    "negative_prompt": "",
     "steps": 20,
     "ddim_eta": 0.5,
     "height": 512,
@@ -46,6 +48,8 @@ DEFAULT_GENERATOR_SETTINGS = {
     "n_samples": 1,
 }
 GENERATOR_TYPES = {
+    "prompt": StringVar,
+    "negative_prompt": StringVar,
     "steps": IntVar,
     "ddim_eta": DoubleVar,
     "height": IntVar,
