@@ -176,7 +176,22 @@ class SDRunner(BaseRunner):
 
     @property
     def model_path(self):
-        return self.current_model
+        if os.path.exists(self.current_model):
+            return self.current_model
+        base_path = self.settings_manager.settings.model_base_path.get()
+        path = None
+        if self.action == "outpaint":
+            path = self.settings_manager.settings.outpaint_model_path.get()
+        elif self.action == "pix2pix":
+            path = self.settings_manager.settings.pix2pix_model_path.get()
+        elif self.action == "depth2img":
+            path = self.settings_manager.settings.depth2img_model_path.get()
+        if path is None or path == "":
+            path = base_path
+        path = os.path.join(path, self.current_model)
+        if not os.path.exists(path):
+            return self.current_model
+        return path
 
     @property
     def scheduler(self):
@@ -479,7 +494,7 @@ class SDRunner(BaseRunner):
             "controlnet",
             "txt2vid",
         ]:
-            if skip_model != model_type:
+            if skip_model is None or skip_model != model_type:
                 model = self.__getattribute__(model_type)
                 if model is not None:
                     self.__setattr__(model_type, None)
@@ -564,7 +579,7 @@ class SDRunner(BaseRunner):
 
     def download_from_original_stable_diffusion_ckpt(
         self, 
-        config="v1.yaml", 
+        config="v1.yaml",
         path=None,
         is_safetensors=False,
         scheduler_name=None,
@@ -597,6 +612,10 @@ class SDRunner(BaseRunner):
         if not device:
             device = self.device
         try:
+            # check if config is a file
+            if not os.path.exists(config):
+                HERE = os.path.dirname(os.path.abspath(__file__))
+                config = os.path.join(HERE, config)
             return download_from_original_stable_diffusion_ckpt(
                 checkpoint_path=path,
                 original_config_file=config,
@@ -604,6 +623,7 @@ class SDRunner(BaseRunner):
                 device=device,
                 from_safetensors=is_safetensors,
                 load_safety_checker=do_nsfw_filter,
+                local_files_only=self.local_files_only
             )
         # find exception: RuntimeError: Error(s) in loading state_dict for UNet2DConditionModel
         except RuntimeError as e:
@@ -1683,9 +1703,9 @@ class SDRunner(BaseRunner):
             else:
                 model =type(pipe).from_pretrained(model_path, local_files_only=self.local_files_only)
 
-            pipe.vae = self.merge_vae(pipe.vae, model.vae, weight)
-            pipe.unet = self.merge_unet(pipe.unet, model.unet, weight)
-            pipe.text_encoder = self.merge_text_encoder(pipe.text_encoder, model.text_encoder, weight)
+            pipe.vae = self.merge_vae(pipe.vae, model.vae, weight["vae"])
+            pipe.unet = self.merge_unet(pipe.unet, model.unet, weight["unet"])
+            pipe.text_encoder = self.merge_text_encoder(pipe.text_encoder, model.text_encoder, weight["text_encoder"])
         # save model
         # pipe.vae = vae
         # pipe.unet = unet
