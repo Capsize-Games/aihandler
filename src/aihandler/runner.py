@@ -1142,9 +1142,37 @@ class SDRunner(BaseRunner):
             )
         else:
             # self.pipe = self.call_pipe_extension(**kwargs)  TODO: extensions
-            if not self.lora_loaded:
+
+            reload_lora = False
+            if len(self.loaded_lora) > 0:
+                # comparre lora in self.options[f"{self.action}_lora"] with self.loaded_lora
+                # if the lora["name"] in options is not in self.loaded_lora, or lora["scale"] is different, reload lora
+                for lora in self.options[f"{self.action}_lora"]:
+                    lora_in_loaded_lora = False
+                    for loaded_lora in self.loaded_lora:
+                        if lora["name"] == loaded_lora["name"] and lora["scale"] == loaded_lora["scale"]:
+                            lora_in_loaded_lora = True
+                            break
+                    if not lora_in_loaded_lora:
+                        reload_lora = True
+                        break
+                if len(self.options[f"{self.action}_lora"]) != len(self.loaded_lora):
+                    reload_lora = True
+
+            if reload_lora:
+                self.loaded_lora = []
+                self.unload_unused_models()
+                #self._load_model()
+                return self.generator_sample(
+                    self.data,
+                    self._image_var,
+                    self._error_var,
+                    self._use_callback
+                )
+            
+            if len(self.loaded_lora) == 0 and len(self.options[f"{self.action}_lora"]) > 0:
                 self.apply_lora()
-                self.lora_loaded = True
+
             return self.pipe(
                 prompt_embeds=prompt_embeds,
                 negative_prompt_embeds=negative_prompt_embeds,
@@ -1155,6 +1183,8 @@ class SDRunner(BaseRunner):
                 # cross_attention_kwargs={"scale": 0.5},
                 **kwargs
             )
+    
+    loaded_lora = []
 
     def apply_lora(self):
         model_base_path = self.settings_manager.settings.model_base_path.get()
@@ -1168,11 +1198,11 @@ class SDRunner(BaseRunner):
                         filepath = os.path.join(root, file)
                         break
             try:
-                self.load_lora(filepath)
+                self.load_lora(filepath, multiplier=lora["scale"] / 100.0)
+                self.loaded_lora.append({"name": lora["name"], "scale": lora["scale"]})
             except RuntimeError as e:
                 print(e)
                 print("Failed to load lora")
-            lora["loaded"] = True
 
     # https://github.com/huggingface/diffusers/issues/3064
     def load_lora(self, checkpoint_path, multiplier=1.0, device="cuda", dtype=torch.float16):
@@ -1236,7 +1266,7 @@ class SDRunner(BaseRunner):
                 # print the shapes of weight_up and weight_down:
                 # print(weight_up.shape, weight_down.shape)
                 curr_layer.weight.data += multiplier * alpha * torch.mm(weight_up, weight_down)
-
+    
     def _preprocess_canny(self, image):
         image = np.array(image)
         low_threshold = 100
@@ -1568,6 +1598,9 @@ class SDRunner(BaseRunner):
         use_callback: bool = True,
     ):
         self.data = data
+        self._image_var = image_var
+        self._error_var = error_var
+        self._use_callback = use_callback
         self.set_message("Generating image...")
 
         action = "depth2img" if data["action"] == "depth" else data["action"]

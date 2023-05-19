@@ -1,5 +1,5 @@
 import os
-from aihandler.qtvar import Var, BooleanVar, IntVar, StringVar, DoubleVar, FloatVar, ListVar
+from aihandler.qtvar import Var, BooleanVar, IntVar, StringVar, DoubleVar, FloatVar, ListVar, DictVar
 from aihandler.settings import \
     DEFAULT_MODEL, \
     DEFAULT_SCHEDULER, \
@@ -215,7 +215,7 @@ class RunAISettings(PropertyBase):
         self.embeddings_path = StringVar(app, "")
 
         self.lora_path = StringVar(app, "")
-        self.available_loras = {}
+        self.available_loras = DictVar(app, {})
 
         self.force_reset = BooleanVar(app, True)
 
