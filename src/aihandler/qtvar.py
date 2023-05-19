@@ -112,6 +112,7 @@ class StringVar(Var):
     my_signal = pyqtSignal(str)
 
 
+
 class ListVar(Var):
     my_signal = pyqtSignal(list)
 

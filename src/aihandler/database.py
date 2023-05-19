@@ -1,5 +1,5 @@
 import os
-from aihandler.qtvar import Var, BooleanVar, IntVar, StringVar, DoubleVar, FloatVar, ListVar
+from aihandler.qtvar import Var, BooleanVar, IntVar, StringVar, DoubleVar, FloatVar, ListVar, DictVar
 from aihandler.settings import \
     DEFAULT_MODEL, \
     DEFAULT_SCHEDULER, \
@@ -31,6 +31,8 @@ DEFAULT_MEMORY_SETTINGS = {
     "use_torch_compile": False
 }
 DEFAULT_GENERATOR_SETTINGS = {
+    "prompt": "",
+    "negative_prompt": "",
     "steps": 20,
     "ddim_eta": 0.5,
     "height": 512,
@@ -46,6 +48,8 @@ DEFAULT_GENERATOR_SETTINGS = {
     "n_samples": 1,
 }
 GENERATOR_TYPES = {
+    "prompt": StringVar,
+    "negative_prompt": StringVar,
     "steps": IntVar,
     "ddim_eta": DoubleVar,
     "height": IntVar,
@@ -180,6 +184,9 @@ class RunAISettings(PropertyBase):
 
         # model settings
         self.model_base_path = StringVar(app, default_model_path)
+        self.depth2img_model_path = StringVar(app)
+        self.pix2pix_model_path = StringVar(app)
+        self.outpaint_model_path = StringVar(app)
 
         self.mask_brush_size = IntVar(app, 10)
 
@@ -208,7 +215,7 @@ class RunAISettings(PropertyBase):
         self.embeddings_path = StringVar(app, "")
 
         self.lora_path = StringVar(app, "")
-        self.available_loras = {}
+        self.available_loras = DictVar(app, {})
 
         self.force_reset = BooleanVar(app, True)
 
