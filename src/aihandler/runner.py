@@ -35,7 +35,7 @@ def image_to_byte_array(image):
 class SDRunner(BaseRunner):
     _current_model: str = ""
     _previous_model: str = ""
-    scheduler_name: str = "ddpm"
+    scheduler_name: str = "Euler a"
     do_nsfw_filter: bool = False
     initialized: bool = False
     seed: int = 42
@@ -176,7 +176,7 @@ class SDRunner(BaseRunner):
 
     @property
     def model_path(self):
-        if os.path.exists(self.current_model):
+        if self.current_model and os.path.exists(self.current_model):
             return self.current_model
         base_path = self.settings_manager.settings.model_base_path.get()
         path = None
@@ -188,7 +188,8 @@ class SDRunner(BaseRunner):
             path = self.settings_manager.settings.depth2img_model_path.get()
         if path is None or path == "":
             path = base_path
-        path = os.path.join(path, self.current_model)
+        if self.current_model:
+            path = os.path.join(path, self.current_model)
         if not os.path.exists(path):
             return self.current_model
         return path
@@ -629,8 +630,16 @@ class SDRunner(BaseRunner):
         except RuntimeError as e:
             if e.args[0].startswith("Error(s) in loading state_dict for UNet2DConditionModel") and config  == "v1.yaml":
                 logger.info("Failed to load model with v1.yaml config file, trying v2.yaml")
-                return self.download_from_original_stable_diffusion_ckpt(config="v2.yaml")
+                return self.download_from_original_stable_diffusion_ckpt(
+                    config="v2.yaml",
+                    path=path,
+                    is_safetensors=is_safetensors,
+                    scheduler_name=scheduler_name,
+                    do_nsfw_filter=do_nsfw_filter,
+                    device=device
+                )
             else:
+                print("Something went wrong loading the model file", e)
                 raise e
 
     def _load_model(self):
@@ -928,6 +937,7 @@ class SDRunner(BaseRunner):
             logger.error("No action provided")
             logger.error(data)
         options = data["options"]
+        print(options)
         self.reload_model = False
         self.controlnet_type = self.options.get("controlnet", "canny")
         self.model_base_path = options["model_base_path"]
@@ -1668,7 +1678,7 @@ class SDRunner(BaseRunner):
     def cancel(self):
         self.do_cancel = True
 
-    def merge_models(self, base_model_path, models_to_merge_path, weights, output_path, name):
+    def merge_models(self, base_model_path, models_to_merge_path, weights, output_path, name, action):
         from diffusers import (
             DiffusionPipeline,
             StableDiffusionPipeline,
@@ -1679,37 +1689,60 @@ class SDRunner(BaseRunner):
             StableDiffusionUpscalePipeline,
             StableDiffusionControlNetPipeline
         )
-        # load base_model using pretrained
-        if base_model_path.endswith('.ckpt'):
-            pipe = StableDiffusionInpaintPipeline.from_pretrained(
-                "facebookresearch/DeOldify:main",
-                local_files_only=self.local_files_only
+        # self.action = action
+        # data = {
+        #     "action": action,
+        #     "options": {
+        #         f"{action}_model": base_model_path,
+        #         f"{action}_scheduler": "Euler a",
+        #         f"{action}_model_branch": "fp16",
+        #         f"model_base_path": self.model_path,
+        #     }
+        # }
+        # self._prepare_options(data)
+        # self._prepare_scheduler()
+        # self._prepare_model()
+        # print(data)
+        # self._initialize()
+        PipeCLS = StableDiffusionPipeline
+        if action == "outpaint":
+            PipeCLS = StableDiffusionInpaintPipeline
+        elif action == "depth2img":
+            PipeCLS = StableDiffusionDepth2ImgPipeline
+        elif action == "pix2pix":
+            PipeCLS = StableDiffusionInstructPix2PixPipeline
+
+        print("LOADING PIPE FROM PRETRAINED", base_model_path)
+        if base_model_path.endswith('.ckpt') or base_model_path.endswith('.safetensors'):
+            pipe = self._load_ckpt_model(
+                path=base_model_path,
+                is_safetensors=base_model_path.endswith('.safetensors'),
+                scheduler_name="Euler a"
             )
-            pipe.vae.load_state_dict(torch.load(base_model_path))
         else:
-            pipe = StableDiffusionInpaintPipeline.from_pretrained(
+            pipe = PipeCLS.from_pretrained(
                 base_model_path,
                 local_files_only=self.local_files_only
             )
-        # vae = pipe.vae
-        # unet = pipe.unet
-        # text_encoder = pipe.text_encoder
-        # load models_to_merge
         for index in range(len(models_to_merge_path)):
             weight = weights[index]
             model_path = models_to_merge_path[index]
-            if model_path.endswith('.ckpt'):
-                model = self._load_ckpt_model(model_path, scheduler_name="Euler a")
+            print("LOADING MODEL TO MERGE FROM PRETRAINED", model_path)
+            if model_path.endswith('.ckpt') or model_path.endswith('.safetensors'):
+                model = self._load_ckpt_model(
+                    path=model_path,
+                    is_safetensors=model_path.endswith('.safetensors'),
+                    scheduler_name="Euler a"
+                )
             else:
-                model =type(pipe).from_pretrained(model_path, local_files_only=self.local_files_only)
+                model = type(pipe).from_pretrained(
+                    model_path,
+                    local_files_only=self.local_files_only
+                )
 
             pipe.vae = self.merge_vae(pipe.vae, model.vae, weight["vae"])
             pipe.unet = self.merge_unet(pipe.unet, model.unet, weight["unet"])
             pipe.text_encoder = self.merge_text_encoder(pipe.text_encoder, model.text_encoder, weight["text_encoder"])
-        # save model
-        # pipe.vae = vae
-        # pipe.unet = unet
-        # pipe.text_encoder = text_encoder
         output_path = os.path.join(output_path, name)
         print(f"Saving to {output_path}")
         pipe.save_pretrained(output_path)
