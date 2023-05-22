@@ -25,35 +25,47 @@ V1_DIR = os.path.join(SD_DIR, "v1")
 APPLICATION_ID = "runai"
 
 # SCHEDULERS
-EULER = "Euler"
-EULER_ANCESTRAL = "Euler a"
-LMS = "LMS"
-PNDM = "PNDM"
-HEUN = "Heun"
 DDIM = "DDIM"
+DDIMInverse = "DDIM Inverse"
 DDPM = "DDPM"
-DPM_SINGLESTEP = "DPM singlestep"
-DPM_MULTISTEP = "DPM multistep"
-DPMPP_SINGLESTEP = "DPM++ singlestep"
-DPMPP_MULTISTEP = "DPM++ multistep"
-DPM2_K = "DPM2 k"
-DPM2_A_K = "DPM2 a k"
 DEIS = "DEIS"
+DPM2_K = "DPM Discrete"
+DPM2_A_K = "DPM Discrete a"
+EULER_ANCESTRAL = "Euler a"
+EULER = "Euler"
+HEUN = "Heun"
+IPNM = "IPNM"
+LMS = "LMS"
+DPMPP_MULTISTEP = "Multistep DPM"
+PNDM = "PNDM"
+DPM_SINGLESTEP = "DPM singlestep"
+REPAINT = "RePaint",
+KVE = "Karras Variance exploding"
+UNIPC = "UniPC"
+VESDE = "VE-SDE"
+VPSDE = "VP-SDE"
+VQDIFFUSION = "VQ Diffusion"
 SCHEDULERS = [
-    EULER,
-    EULER_ANCESTRAL,
-    LMS,
-    PNDM,
-    HEUN,
     DDIM,
+    DDIMInverse,
     DDPM,
-    DPM_SINGLESTEP,
-    DPM_MULTISTEP,
-    DPMPP_SINGLESTEP,
-    DPMPP_MULTISTEP,
+    DEIS,
     DPM2_K,
     DPM2_A_K,
-    DEIS,
+    EULER_ANCESTRAL,
+    EULER,
+    HEUN,
+    IPNM,
+    LMS,
+    DPMPP_MULTISTEP,
+    PNDM,
+    DPM_SINGLESTEP,
+    REPAINT,
+    KVE,
+    UNIPC,
+    VESDE,
+    VPSDE,
+    VQDIFFUSION,
 ]
 AVAILABLE_SCHEDULERS_BY_ACTION = {
     "txt2img": SCHEDULERS,

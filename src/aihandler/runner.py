@@ -69,20 +69,26 @@ class SDRunner(BaseRunner):
     model = None
     do_cancel = False
     schedulers: dict = {
-        "Euler": "EulerDiscreteScheduler",
-        "Euler a": "EulerAncestralDiscreteScheduler",
-        "LMS": "LMSDiscreteScheduler",
-        "PNDM": "PNDMScheduler",
-        "Heun": "HeunDiscreteScheduler",
         "DDIM": "DDIMScheduler",
+        "DDIM Inverse": "DDIMInverseScheduler",
         "DDPM": "DDPMScheduler",
-        "DPM multistep": "DPMSolverMultistepScheduler",
-        "DPM singlestep": "DPMSolverSinglestepScheduler",
-        "DPM++ multistep": "DPMSolverMultistepScheduler",
-        "DPM++ singlestep": "DPMSolverSinglestepScheduler",
-        "DPM2 k": "KDPM2DiscreteScheduler",
-        "DPM2 a k": "KDPM2AncestralDiscreteScheduler",
         "DEIS": "DEISMultistepScheduler",
+        "DPM Discrete": "KDPM2DiscreteScheduler",
+        "DPM Discrete a": "KDPM2AncestralDiscreteScheduler",
+        "Euler a": "EulerAncestralDiscreteScheduler",
+        "Euler": "EulerDiscreteScheduler",
+        "Heun": "HeunDiscreteScheduler",
+        "IPNM": "IPNDMScheduler",
+        "LMS": "LMSDiscreteScheduler",
+        "Multistep DPM": "DPMSolverMultistepScheduler",
+        "PNDM": "PNDMScheduler",
+        "DPM singlestep": "DPMSolverSinglestepScheduler",
+        "RePaint": "RePaintScheduler",
+        "Karras Variance exploding": "KarrasVeScheduler",
+        "UniPC": "UniPCMultistepScheduler",
+        "VE-SDE": "ScoreSdeVeScheduler",
+        "VP-SDE": "ScoreSdeVpScheduler",
+        "VQ Diffusion": " VQDiffusionScheduler",
     }
     registered_schedulers: dict = {}
     safety_checker = None
