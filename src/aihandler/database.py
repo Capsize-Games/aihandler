@@ -74,6 +74,7 @@ GENERATORS = [
     "inpaint",
     "outpaint",
     "depth2img",
+    "upscale",
     "superresolution",
     "controlnet",
     "txt2vid",
@@ -187,6 +188,7 @@ class RunAISettings(PropertyBase):
         self.depth2img_model_path = StringVar(app)
         self.pix2pix_model_path = StringVar(app)
         self.outpaint_model_path = StringVar(app)
+        self.upscale_model_path = StringVar(app)
 
         self.mask_brush_size = IntVar(app, 10)
 

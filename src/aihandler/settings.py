@@ -62,6 +62,7 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
     "pix2pix": SCHEDULERS,
     "vid2vid": SCHEDULERS,
     "outpaint": SCHEDULERS,
+    "upscale": SCHEDULERS,
     "superresolution": [DDIM, LMS, PNDM],
     "controlnet": SCHEDULERS,
 }
@@ -207,6 +208,12 @@ MODELS = {
     "txt2vid":  {
         "damo-vilab": {
             "path": "damo-vilab/text-to-video-ms-1.7b",
+            "branch": "fp16",
+        }
+    },
+    "upscale": {
+        "sd-x2-latent-upscaler": {
+            "path": "stabilityai/sd-x2-latent-upscaler",
             "branch": "fp16",
         }
     }

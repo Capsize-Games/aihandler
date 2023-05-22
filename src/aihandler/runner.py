@@ -95,6 +95,7 @@ class SDRunner(BaseRunner):
     controlnet = None
     superresolution = None
     txt2vid = None
+    upscale = None
     state = None
     local_files_only = True
     lora_loaded = False
@@ -141,6 +142,10 @@ class SDRunner(BaseRunner):
     @property
     def is_txt2vid(self):
         return self.action == "txt2vid"
+
+    @property
+    def is_upscale(self):
+        return self.action == "upscale"
 
     @property
     def is_img2img(self):
@@ -209,6 +214,8 @@ class SDRunner(BaseRunner):
         import diffusers
         if self.is_txt2vid:
             scheduler_class = getattr(diffusers, "DPMSolverMultistepScheduler")
+        elif self.is_upscale:
+            scheduler_class = getattr(diffusers, "EulerDiscreteScheduler")
         else:
             scheduler_class = getattr(diffusers, self.schedulers[self.scheduler_name])
         kwargs = {
@@ -259,6 +266,8 @@ class SDRunner(BaseRunner):
             return self.controlnet is not None
         elif self.is_txt2vid:
             return self.txt2vid is not None
+        elif self.is_upscale:
+            return self.upscale is not None
 
     @property
     def pipe(self):
@@ -278,6 +287,8 @@ class SDRunner(BaseRunner):
             return self.controlnet
         elif self.is_txt2vid:
             return self.txt2vid
+        elif self.is_upscale:
+            return self.upscale
         else:
             raise ValueError(f"Invalid action {self.action} unable to get pipe")
 
@@ -299,6 +310,8 @@ class SDRunner(BaseRunner):
             self.controlnet = value
         elif self.is_txt2vid:
             self.txt2vid = value
+        elif self.is_upscale:
+            self.upscale = value
         else:
             raise ValueError(f"Invalid action {self.action} unable to set pipe")
 
@@ -390,7 +403,8 @@ class SDRunner(BaseRunner):
             StableDiffusionInpaintPipeline,
             StableDiffusionDepth2ImgPipeline,
             StableDiffusionUpscalePipeline,
-            StableDiffusionControlNetPipeline
+            StableDiffusionControlNetPipeline,
+            StableDiffusionLatentUpscalePipeline,
         )
 
         if self.is_txt2img:
@@ -409,6 +423,8 @@ class SDRunner(BaseRunner):
             return StableDiffusionControlNetPipeline
         elif self.is_txt2vid:
             return DiffusionPipeline
+        elif self.is_upscale:
+            return StableDiffusionLatentUpscalePipeline
         else:
             raise ValueError("Invalid action")
 
@@ -494,6 +510,7 @@ class SDRunner(BaseRunner):
             "superresolution",
             "controlnet",
             "txt2vid",
+            "upscale",
         ]:
             if skip_model is None or skip_model != model_type:
                 model = self.__getattribute__(model_type)
@@ -762,7 +779,7 @@ class SDRunner(BaseRunner):
             self.pipe.unet.to(memory_format=torch.contiguous_format)
 
     def apply_vae_slicing(self):
-        if self.action not in ["img2img", "depth2img", "pix2pix", "outpaint", "superresolution", "controlnet"]:
+        if self.action not in ["img2img", "depth2img", "pix2pix", "outpaint", "superresolution", "controlnet", "upscale"]:
             if self.use_enable_vae_slicing:
                 logger.debug("Enabling vae slicing")
                 self.pipe.enable_vae_slicing()
@@ -1061,7 +1078,10 @@ class SDRunner(BaseRunner):
             nsfw_content_detected = None
             if output:
                 if self.action_has_safety_checker:
-                    nsfw_content_detected = output.nsfw_content_detected
+                    try:
+                        nsfw_content_detected = output.nsfw_content_detected
+                    except AttributeError:
+                        pass
             return image, nsfw_content_detected
 
     # active_extensions = []  TODO: extensions
@@ -1169,6 +1189,17 @@ class SDRunner(BaseRunner):
                 num_inference_steps=self.num_inference_steps,
                 num_frames=self.batch_size,
                 callback=self.callback,
+                seed=self.seed,
+            )
+        elif self.is_upscale:
+            return self.pipe(
+                prompt=self.prompt,
+                negative_prompt=self.negative_prompt,
+                image=kwargs.get("image"),
+                num_inference_steps=self.num_inference_steps,
+                guidance_scale=self.guidance_scale,
+                callback=self.callback,
+                generator=torch.manual_seed(self.seed)
             )
         else:
             # self.pipe = self.call_pipe_extension(**kwargs)  TODO: extensions
@@ -1436,6 +1467,10 @@ class SDRunner(BaseRunner):
             extra_args["strength"] = self.strength
         elif action == "txt2vid":
             pass
+        elif action == "upscale":
+            image = data["options"]["image"]
+            extra_args["image"] = image
+            extra_args["image_guidance_scale"] = self.image_guidance_scale
         elif self.is_superresolution:
             image = data["options"]["image"]
             if self.do_mega_scale:
@@ -1562,7 +1597,7 @@ class SDRunner(BaseRunner):
         self._change_scheduler()
 
         self.apply_memory_efficient_settings()
-        if self.is_txt2vid:
+        if self.is_txt2vid or self.is_upscale:
             total_to_generate = 1
         else:
             total_to_generate = self.batch_size
