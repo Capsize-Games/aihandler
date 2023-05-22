@@ -696,6 +696,9 @@ class SDRunner(BaseRunner):
                 logger.debug("Loading from diffusers pipeline")
                 if self.is_controlnet:
                     kwargs["controlnet"] = self.load_controlnet()
+                if self.is_superresolution:
+                    kwargs["low_res_scheduler"] = self.load_scheduler("DDPMScheduler")
+                print(kwargs)
                 self.pipe = self.action_diffuser.from_pretrained(
                     self.model_path,
                     local_files_only=self.local_files_only,
@@ -797,11 +800,11 @@ class SDRunner(BaseRunner):
 
     def apply_tiled_vae(self):
         if self.use_tiled_vae:
-            logger.debug("Applying tiled vae")
-            from diffusers import UniPCMultistepScheduler
-            self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
+            logger.info("Applying tiled vae")
+            # from diffusers import UniPCMultistepScheduler
+            # self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
             try:
-                self.pipe.enable_vae_tiling()
+                self.pipe.vae.enable_tiling()
             except AttributeError:
                 logger.warning("Tiled vae not supported for this model")
 
@@ -1201,6 +1204,17 @@ class SDRunner(BaseRunner):
                 callback=self.callback,
                 generator=torch.manual_seed(self.seed)
             )
+        elif self.is_superresolution:
+            return self.pipe(
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
+                guidance_scale=self.guidance_scale,
+                num_inference_steps=self.num_inference_steps,
+                num_images_per_prompt=1,
+                callback=self.callback,
+                # cross_attention_kwargs={"scale": 0.5},
+                **kwargs
+            )
         else:
             # self.pipe = self.call_pipe_extension(**kwargs)  TODO: extensions
 
@@ -1526,9 +1540,9 @@ class SDRunner(BaseRunner):
                 scaled_h = scale_size
                 downscaled_image = image.resize((scaled_w, scaled_h), Image.BILINEAR)
                 extra_args["image"] = downscaled_image
-                upscaled_image, nsfw_content_detected = self.do_sample(**extra_args)
+                upscaled_image = self.do_sample(**extra_args)
                 # upscale back to self.width and self.height
-                image = upscaled_image.resize((original_image_width, original_image_height), Image.BILINEAR)
+                image = upscaled_image #.resize((original_image_width, original_image_height), Image.BILINEAR)
 
                 return image
             else:

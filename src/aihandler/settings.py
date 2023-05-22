@@ -251,7 +251,7 @@ TEXT_MODELS = {
     }
 }
 KERAS_MODELS = {
-    "super_resolution": "keras-io/super-resolution",
+    "superresolution": "keras-io/super-resolution",
 }
 
 DEFAULT_MODEL = "Stable Diffusion V2"
