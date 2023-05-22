@@ -117,7 +117,8 @@ class SDRunner(BaseRunner):
 
     @property
     def do_mega_scale(self):
-        return self.is_superresolution
+        #return self.is_superresolution
+        return False
 
     @property
     def action(self):
@@ -201,23 +202,28 @@ class SDRunner(BaseRunner):
 
     @property
     def scheduler(self):
+        return self.load_scheduler()
+
+    def load_scheduler(self, schduler_class_name=None):
+        import diffusers
+
         if not self.model_path or self.model_path == "":
-            # print stack trace
-            import traceback
             traceback.print_stack()
             raise Exception("Chicken / egg problem, model path not set")
 
-        if self.is_ckpt_model or self.is_safetensors:
-            # skip scheduler for ckpt models
+        if self.is_ckpt_model or self.is_safetensors:  # skip scheduler for ckpt models
             return None
-        # set logging level to fatal for all loggers
-        import diffusers
-        if self.is_txt2vid:
-            scheduler_class = getattr(diffusers, "DPMSolverMultistepScheduler")
-        elif self.is_upscale:
-            scheduler_class = getattr(diffusers, "EulerDiscreteScheduler")
+        if schduler_class_name:
+            scheduler_class = getattr(diffusers, schduler_class_name)
         else:
-            scheduler_class = getattr(diffusers, self.schedulers[self.scheduler_name])
+            if self.is_txt2vid:
+                scheduler_class = getattr(diffusers, "DPMSolverMultistepScheduler")
+            elif self.is_upscale:
+                scheduler_class = getattr(diffusers, "EulerDiscreteScheduler")
+            elif self.is_superresolution:
+                scheduler_class = getattr(diffusers, "DDIMScheduler")
+            else:
+                scheduler_class = getattr(diffusers, self.schedulers[self.scheduler_name])
         kwargs = {
             "subfolder": "scheduler"
         }
@@ -228,7 +234,6 @@ class SDRunner(BaseRunner):
                 kwargs["algorithm_type"] = "dpmsolver++"
             else:
                 kwargs["algorithm_type"] = "dpmsolver"
-
         if self.current_model_branch:
             kwargs["variant"] = self.current_model_branch
         return scheduler_class.from_pretrained(
@@ -237,8 +242,6 @@ class SDRunner(BaseRunner):
             use_auth_token=self.data["options"]["hf_token"],
             **kwargs
         )
-        # else:
-        #     raise ValueError("Invalid scheduler name")
 
     @property
     def cuda_error_message(self):
