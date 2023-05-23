@@ -105,6 +105,7 @@ class SDRunner(BaseRunner):
     state = None
     local_files_only = True
     lora_loaded = False
+    loaded_lora = []
 
     # memory settings
     _use_last_channels = True
@@ -120,6 +121,7 @@ class SDRunner(BaseRunner):
     embeds_loaded = False
     controlnet_type = "canny"
     options = {}
+    # active_extensions = []  TODO: extensions
 
     @property
     def do_mega_scale(self):
@@ -1096,8 +1098,6 @@ class SDRunner(BaseRunner):
                         pass
             return image, nsfw_content_detected
 
-    # active_extensions = []  TODO: extensions
-
     def enhance_video(self, video_frames):
         """
         Iterate over each video frame and call img2img on it using the same options that were passed
@@ -1226,6 +1226,8 @@ class SDRunner(BaseRunner):
             )
         else:
             # self.pipe = self.call_pipe_extension(**kwargs)  TODO: extensions
+            if not self.lora_loaded:
+                self.loaded_lora = []
 
             reload_lora = False
             if len(self.loaded_lora) > 0:
@@ -1256,6 +1258,7 @@ class SDRunner(BaseRunner):
             
             if len(self.loaded_lora) == 0 and len(self.options[f"{self.action}_lora"]) > 0:
                 self.apply_lora()
+                self.lora_loaded = len(self.loaded_lora) > 0
 
             return self.pipe(
                 prompt_embeds=prompt_embeds,
@@ -1268,8 +1271,6 @@ class SDRunner(BaseRunner):
                 **kwargs
             )
     
-    loaded_lora = []
-
     def apply_lora(self):
         model_base_path = self.settings_manager.settings.model_base_path.get()
         lora_path = self.settings_manager.settings.lora_path.get() or "lora"
