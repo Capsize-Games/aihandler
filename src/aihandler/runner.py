@@ -69,20 +69,26 @@ class SDRunner(BaseRunner):
     model = None
     do_cancel = False
     schedulers: dict = {
-        "Euler": "EulerDiscreteScheduler",
-        "Euler a": "EulerAncestralDiscreteScheduler",
-        "LMS": "LMSDiscreteScheduler",
-        "PNDM": "PNDMScheduler",
-        "Heun": "HeunDiscreteScheduler",
         "DDIM": "DDIMScheduler",
+        "DDIM Inverse": "DDIMInverseScheduler",
         "DDPM": "DDPMScheduler",
-        "DPM multistep": "DPMSolverMultistepScheduler",
-        "DPM singlestep": "DPMSolverSinglestepScheduler",
-        "DPM++ multistep": "DPMSolverMultistepScheduler",
-        "DPM++ singlestep": "DPMSolverSinglestepScheduler",
-        "DPM2 k": "KDPM2DiscreteScheduler",
-        "DPM2 a k": "KDPM2AncestralDiscreteScheduler",
         "DEIS": "DEISMultistepScheduler",
+        "DPM Discrete": "KDPM2DiscreteScheduler",
+        "DPM Discrete a": "KDPM2AncestralDiscreteScheduler",
+        "Euler a": "EulerAncestralDiscreteScheduler",
+        "Euler": "EulerDiscreteScheduler",
+        "Heun": "HeunDiscreteScheduler",
+        "IPNM": "IPNDMScheduler",
+        "LMS": "LMSDiscreteScheduler",
+        "Multistep DPM": "DPMSolverMultistepScheduler",
+        "PNDM": "PNDMScheduler",
+        "DPM singlestep": "DPMSolverSinglestepScheduler",
+        "RePaint": "RePaintScheduler",
+        "Karras Variance exploding": "KarrasVeScheduler",
+        "UniPC": "UniPCMultistepScheduler",
+        "VE-SDE": "ScoreSdeVeScheduler",
+        "VP-SDE": "ScoreSdeVpScheduler",
+        "VQ Diffusion": " VQDiffusionScheduler",
     }
     registered_schedulers: dict = {}
     safety_checker = None
@@ -95,9 +101,11 @@ class SDRunner(BaseRunner):
     controlnet = None
     superresolution = None
     txt2vid = None
+    upscale = None
     state = None
     local_files_only = True
     lora_loaded = False
+    loaded_lora = []
 
     # memory settings
     _use_last_channels = True
@@ -113,10 +121,12 @@ class SDRunner(BaseRunner):
     embeds_loaded = False
     controlnet_type = "canny"
     options = {}
+    # active_extensions = []  TODO: extensions
 
     @property
     def do_mega_scale(self):
-        return self.is_superresolution
+        #return self.is_superresolution
+        return False
 
     @property
     def action(self):
@@ -141,6 +151,10 @@ class SDRunner(BaseRunner):
     @property
     def is_txt2vid(self):
         return self.action == "txt2vid"
+
+    @property
+    def is_upscale(self):
+        return self.action == "upscale"
 
     @property
     def is_img2img(self):
@@ -196,21 +210,28 @@ class SDRunner(BaseRunner):
 
     @property
     def scheduler(self):
+        return self.load_scheduler()
+
+    def load_scheduler(self, schduler_class_name=None):
+        import diffusers
+
         if not self.model_path or self.model_path == "":
-            # print stack trace
-            import traceback
             traceback.print_stack()
             raise Exception("Chicken / egg problem, model path not set")
 
-        if self.is_ckpt_model or self.is_safetensors:
-            # skip scheduler for ckpt models
+        if self.is_ckpt_model or self.is_safetensors:  # skip scheduler for ckpt models
             return None
-        # set logging level to fatal for all loggers
-        import diffusers
-        if self.is_txt2vid:
-            scheduler_class = getattr(diffusers, "DPMSolverMultistepScheduler")
+        if schduler_class_name:
+            scheduler_class = getattr(diffusers, schduler_class_name)
         else:
-            scheduler_class = getattr(diffusers, self.schedulers[self.scheduler_name])
+            if self.is_txt2vid:
+                scheduler_class = getattr(diffusers, "DPMSolverMultistepScheduler")
+            elif self.is_upscale:
+                scheduler_class = getattr(diffusers, "EulerDiscreteScheduler")
+            elif self.is_superresolution:
+                scheduler_class = getattr(diffusers, "DDIMScheduler")
+            else:
+                scheduler_class = getattr(diffusers, self.schedulers[self.scheduler_name])
         kwargs = {
             "subfolder": "scheduler"
         }
@@ -221,7 +242,6 @@ class SDRunner(BaseRunner):
                 kwargs["algorithm_type"] = "dpmsolver++"
             else:
                 kwargs["algorithm_type"] = "dpmsolver"
-
         if self.current_model_branch:
             kwargs["variant"] = self.current_model_branch
         return scheduler_class.from_pretrained(
@@ -230,8 +250,6 @@ class SDRunner(BaseRunner):
             use_auth_token=self.data["options"]["hf_token"],
             **kwargs
         )
-        # else:
-        #     raise ValueError("Invalid scheduler name")
 
     @property
     def cuda_error_message(self):
@@ -259,6 +277,8 @@ class SDRunner(BaseRunner):
             return self.controlnet is not None
         elif self.is_txt2vid:
             return self.txt2vid is not None
+        elif self.is_upscale:
+            return self.upscale is not None
 
     @property
     def pipe(self):
@@ -278,6 +298,8 @@ class SDRunner(BaseRunner):
             return self.controlnet
         elif self.is_txt2vid:
             return self.txt2vid
+        elif self.is_upscale:
+            return self.upscale
         else:
             raise ValueError(f"Invalid action {self.action} unable to get pipe")
 
@@ -299,6 +321,8 @@ class SDRunner(BaseRunner):
             self.controlnet = value
         elif self.is_txt2vid:
             self.txt2vid = value
+        elif self.is_upscale:
+            self.upscale = value
         else:
             raise ValueError(f"Invalid action {self.action} unable to set pipe")
 
@@ -390,7 +414,8 @@ class SDRunner(BaseRunner):
             StableDiffusionInpaintPipeline,
             StableDiffusionDepth2ImgPipeline,
             StableDiffusionUpscalePipeline,
-            StableDiffusionControlNetPipeline
+            StableDiffusionControlNetPipeline,
+            StableDiffusionLatentUpscalePipeline,
         )
 
         if self.is_txt2img:
@@ -409,6 +434,8 @@ class SDRunner(BaseRunner):
             return StableDiffusionControlNetPipeline
         elif self.is_txt2vid:
             return DiffusionPipeline
+        elif self.is_upscale:
+            return StableDiffusionLatentUpscalePipeline
         else:
             raise ValueError("Invalid action")
 
@@ -494,6 +521,7 @@ class SDRunner(BaseRunner):
             "superresolution",
             "controlnet",
             "txt2vid",
+            "upscale",
         ]:
             if skip_model is None or skip_model != model_type:
                 model = self.__getattribute__(model_type)
@@ -679,6 +707,9 @@ class SDRunner(BaseRunner):
                 logger.debug("Loading from diffusers pipeline")
                 if self.is_controlnet:
                     kwargs["controlnet"] = self.load_controlnet()
+                if self.is_superresolution:
+                    kwargs["low_res_scheduler"] = self.load_scheduler("DDPMScheduler")
+                print(kwargs)
                 self.pipe = self.action_diffuser.from_pretrained(
                     self.model_path,
                     local_files_only=self.local_files_only,
@@ -762,7 +793,7 @@ class SDRunner(BaseRunner):
             self.pipe.unet.to(memory_format=torch.contiguous_format)
 
     def apply_vae_slicing(self):
-        if self.action not in ["img2img", "depth2img", "pix2pix", "outpaint", "superresolution", "controlnet"]:
+        if self.action not in ["img2img", "depth2img", "pix2pix", "outpaint", "superresolution", "controlnet", "upscale"]:
             if self.use_enable_vae_slicing:
                 logger.debug("Enabling vae slicing")
                 self.pipe.enable_vae_slicing()
@@ -780,11 +811,11 @@ class SDRunner(BaseRunner):
 
     def apply_tiled_vae(self):
         if self.use_tiled_vae:
-            logger.debug("Applying tiled vae")
-            from diffusers import UniPCMultistepScheduler
-            self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
+            logger.info("Applying tiled vae")
+            # from diffusers import UniPCMultistepScheduler
+            # self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
             try:
-                self.pipe.enable_vae_tiling()
+                self.pipe.vae.enable_tiling()
             except AttributeError:
                 logger.warning("Tiled vae not supported for this model")
 
@@ -1061,10 +1092,11 @@ class SDRunner(BaseRunner):
             nsfw_content_detected = None
             if output:
                 if self.action_has_safety_checker:
-                    nsfw_content_detected = output.nsfw_content_detected
+                    try:
+                        nsfw_content_detected = output.nsfw_content_detected
+                    except AttributeError:
+                        pass
             return image, nsfw_content_detected
-
-    # active_extensions = []  TODO: extensions
 
     def enhance_video(self, video_frames):
         """
@@ -1169,9 +1201,33 @@ class SDRunner(BaseRunner):
                 num_inference_steps=self.num_inference_steps,
                 num_frames=self.batch_size,
                 callback=self.callback,
+                seed=self.seed,
+            )
+        elif self.is_upscale:
+            return self.pipe(
+                prompt=self.prompt,
+                negative_prompt=self.negative_prompt,
+                image=kwargs.get("image"),
+                num_inference_steps=self.num_inference_steps,
+                guidance_scale=self.guidance_scale,
+                callback=self.callback,
+                generator=torch.manual_seed(self.seed)
+            )
+        elif self.is_superresolution:
+            return self.pipe(
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
+                guidance_scale=self.guidance_scale,
+                num_inference_steps=self.num_inference_steps,
+                num_images_per_prompt=1,
+                callback=self.callback,
+                # cross_attention_kwargs={"scale": 0.5},
+                **kwargs
             )
         else:
             # self.pipe = self.call_pipe_extension(**kwargs)  TODO: extensions
+            if not self.lora_loaded:
+                self.loaded_lora = []
 
             reload_lora = False
             if len(self.loaded_lora) > 0:
@@ -1202,6 +1258,7 @@ class SDRunner(BaseRunner):
             
             if len(self.loaded_lora) == 0 and len(self.options[f"{self.action}_lora"]) > 0:
                 self.apply_lora()
+                self.lora_loaded = len(self.loaded_lora) > 0
 
             return self.pipe(
                 prompt_embeds=prompt_embeds,
@@ -1214,8 +1271,6 @@ class SDRunner(BaseRunner):
                 **kwargs
             )
     
-    loaded_lora = []
-
     def apply_lora(self):
         model_base_path = self.settings_manager.settings.model_base_path.get()
         lora_path = self.settings_manager.settings.lora_path.get() or "lora"
@@ -1436,6 +1491,10 @@ class SDRunner(BaseRunner):
             extra_args["strength"] = self.strength
         elif action == "txt2vid":
             pass
+        elif action == "upscale":
+            image = data["options"]["image"]
+            extra_args["image"] = image
+            extra_args["image_guidance_scale"] = self.image_guidance_scale
         elif self.is_superresolution:
             image = data["options"]["image"]
             if self.do_mega_scale:
@@ -1491,9 +1550,9 @@ class SDRunner(BaseRunner):
                 scaled_h = scale_size
                 downscaled_image = image.resize((scaled_w, scaled_h), Image.BILINEAR)
                 extra_args["image"] = downscaled_image
-                upscaled_image, nsfw_content_detected = self.do_sample(**extra_args)
+                upscaled_image = self.do_sample(**extra_args)
                 # upscale back to self.width and self.height
-                image = upscaled_image.resize((original_image_width, original_image_height), Image.BILINEAR)
+                image = upscaled_image #.resize((original_image_width, original_image_height), Image.BILINEAR)
 
                 return image
             else:
@@ -1562,7 +1621,7 @@ class SDRunner(BaseRunner):
         self._change_scheduler()
 
         self.apply_memory_efficient_settings()
-        if self.is_txt2vid:
+        if self.is_txt2vid or self.is_upscale:
             total_to_generate = 1
         else:
             total_to_generate = self.batch_size
