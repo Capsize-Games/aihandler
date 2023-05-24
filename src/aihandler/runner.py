@@ -617,6 +617,7 @@ class SDRunner(BaseRunner):
     ):
         from diffusers.pipelines.stable_diffusion.convert_from_ckpt import \
             download_from_original_stable_diffusion_ckpt
+        from diffusers import StableDiffusionImg2ImgPipeline
         print("is safetensors", is_safetensors)
         schedulers = {
             "Euler": "euler",
@@ -652,7 +653,8 @@ class SDRunner(BaseRunner):
                 device=device,
                 from_safetensors=is_safetensors,
                 load_safety_checker=do_nsfw_filter,
-                local_files_only=self.local_files_only
+                local_files_only=self.local_files_only,
+                pipeline_class=StableDiffusionImg2ImgPipeline if self.is_controlnet else self.action_diffuser
             )
         # find exception: RuntimeError: Error(s) in loading state_dict for UNet2DConditionModel
         except RuntimeError as e:
@@ -1185,7 +1187,11 @@ class SDRunner(BaseRunner):
         :return:
         """
         logger.info("Initialize compel")
-        compel_proc = Compel(tokenizer=self.pipe.tokenizer, text_encoder=self.pipe.text_encoder)
+        compel_proc = Compel(
+            tokenizer=self.pipe.tokenizer,
+            text_encoder=self.pipe.text_encoder,
+            truncate_long_prompts=False
+        )
         logger.info("Initialize compel prompt")
         prompt_embeds = compel_proc(self.prompt)
         logger.info("Initialize compel negative prompt")
