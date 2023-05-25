@@ -1754,7 +1754,7 @@ class SDRunner(BaseRunner):
             StableDiffusionUpscalePipeline,
             StableDiffusionControlNetPipeline
         )
-        # self.action = action
+        self.action = action
         # data = {
         #     "action": action,
         #     "options": {
