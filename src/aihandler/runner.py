@@ -869,17 +869,26 @@ class SDRunner(BaseRunner):
 
     def move_pipe_to_cpu(self, pipe):
         logger.debug("Moving to cpu")
-        pipe.to("cpu", torch.float32)
+        try:
+            pipe.to("cpu", torch.float32)
+        except NotImplementedError:
+            logger.warning("Not implemented error when moving to cpu")
         return pipe
 
     def apply_cpu_offload(self):
         if self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
             logger.debug("Enabling sequential cpu offload")
             self.pipe = self.move_pipe_to_cpu(self.pipe)
-            self.pipe.enable_sequential_cpu_offload()
+            try:
+                self.pipe.enable_sequential_cpu_offload()
+            except NotImplementedError:
+                logger.warning("Not implemented error when applying sequential cpu offload")
+                self.pipe = self.move_pipe_to_cuda(self.pipe)
 
     def apply_model_offload(self):
-        if self.enable_model_cpu_offload and not self.use_enable_sequential_cpu_offload:
+        if self.enable_model_cpu_offload \
+           and not self.use_enable_sequential_cpu_offload \
+           and hasattr(self.pipe, "enable_model_cpu_offload"):
             logger.debug("Enabling model cpu offload")
             self.pipe = self.move_pipe_to_cpu(self.pipe)
             self.pipe.enable_model_cpu_offload()
