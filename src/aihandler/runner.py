@@ -184,9 +184,6 @@ class SDRunner(BaseRunner):
     def current_model(self, model):
         if self._current_model != model:
             self._current_model = model
-            if self.initialized:
-                logger.info("SDRunner initialized")
-                self._load_model()
 
     @property
     def model_path(self):
@@ -681,7 +678,8 @@ class SDRunner(BaseRunner):
                 kwargs["variant"] = self.current_model_branch
 
         # move all models except for our current action to the CPU
-        #self.unload_unused_models(skip_model=self.action)
+        if not self.initialized or self.reload_model:
+            self.unload_unused_models()
 
         # special load case for img2img if txt2img is already loaded
         if self.is_img2img and self.txt2img is not None:
@@ -1719,8 +1717,9 @@ class SDRunner(BaseRunner):
             traceback.print_exc() if self.is_dev_env else logger.error(e)
         except Exception as e:
             if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
-                raise Exception(self.cuda_error_message)
-            error = f"Error during generation"
+                error = self.cuda_error_message
+            else:
+                error = f"Error during generation"
             traceback.print_exc() if self.is_dev_env else logger.error(e)
 
         if error:
