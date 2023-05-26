@@ -1,6 +1,6 @@
 import os
 import json
-from aihandler.database import RunAISettings
+from aihandler.database import RunAISettings, PromptSettings
 from aihandler.qtvar import Var, BooleanVar, StringVar, IntVar, FloatVar, DoubleVar, ListVar
 # from aihandler.qtvar import ExtensionVar  TODO: extensions
 
@@ -18,6 +18,10 @@ class SettingsManager:
     app = None
     settings = None
     save_disabled = False
+
+    @property
+    def file_name(self):
+        return "airunner.settings.json"
 
     @property
     def current_tool(self):
@@ -89,13 +93,13 @@ class SettingsManager:
             elif type(value) in [list, dict, int, float, str, bool]:
                 settings[key] = value
         HOME = os.path.expanduser("~")
-        f = open(os.path.join(HOME, "airunner.settings.json"), "w")
+        f = open(os.path.join(HOME, self.file_name), "w")
         json.dump(settings, f)
 
     def load_settings(self):
         self.disable_save()
         HOME = os.path.expanduser("~")
-        f = open(os.path.join(HOME, "airunner.settings.json"), "r")
+        f = open(os.path.join(HOME, self.file_name), "r")
         try:
             settings = json.load(f)
         except Exception as e:
@@ -139,3 +143,19 @@ class SettingsManager:
 
     def set_tool(self, val):
         self.settings.current_tool.set(val)
+
+
+class PromptManager(SettingsManager):
+    @property
+    def file_name(self):
+        return "airunner.prompts.json"
+
+    def __init__(self, app=None):
+        # if not app:
+        #     raise Exception("SettingsManager must be initialized with an app")
+        self.settings = PromptSettings(app=self)
+        self.settings.initialize(self.settings.read())
+        try:
+            self.load_settings()
+        except Exception as e:
+            self.save_settings()
