@@ -164,6 +164,7 @@ class SDRunner(BaseRunner):
     def load_prompt_embeds(self):
         logger.info("Loading prompt embeds")
         self.compel_proc = None
+        self.clear_memory()
         prompt = self.prompt
         negative_prompt = self.negative_prompt if self.negative_prompt else ""
         prompt_embeds = self.compel_proc.build_conditioning_tensor(prompt)
