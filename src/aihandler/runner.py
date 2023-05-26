@@ -19,6 +19,7 @@ from controlnet_aux import HEDdetector, MLSDdetector, OpenposeDetector
 from compel import Compel
 from collections import defaultdict
 from safetensors.torch import load_file
+from aihandler.settings import AVAILABLE_SCHEDULERS_BY_ACTION
 
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
@@ -209,7 +210,7 @@ class SDRunner(BaseRunner):
     def scheduler(self):
         return self.load_scheduler()
 
-    def load_scheduler(self, scheduler_class_name=None):
+    def load_scheduler(self, force_scheduler_name=None):
         import diffusers
 
         if not self.model_path or self.model_path == "":
@@ -218,8 +219,12 @@ class SDRunner(BaseRunner):
 
         if self.is_ckpt_model or self.is_safetensors:  # skip scheduler for ckpt models
             return None
-        scheduler_name = scheduler_class_name if scheduler_class_name else self.schedulers[self.scheduler_name]
-        scheduler_class = getattr(diffusers, scheduler_name)
+
+        scheduler_name = force_scheduler_name if force_scheduler_name else self.scheduler_name
+        if not force_scheduler_name and scheduler_name not in AVAILABLE_SCHEDULERS_BY_ACTION[self.action]:
+            scheduler_name = AVAILABLE_SCHEDULERS_BY_ACTION[self.action][0]
+        scheduler_class_name = self.schedulers[scheduler_name]
+        scheduler_class = getattr(diffusers, scheduler_class_name)
         kwargs = {
             "subfolder": "scheduler"
         }
@@ -700,7 +705,7 @@ class SDRunner(BaseRunner):
                 if self.is_controlnet:
                     kwargs["controlnet"] = self.load_controlnet()
                 if self.is_superresolution:
-                    kwargs["low_res_scheduler"] = self.load_scheduler("DDPMScheduler")
+                    kwargs["low_res_scheduler"] = self.load_scheduler("DDPM")
                 print(kwargs)
                 self.pipe = self.action_diffuser.from_pretrained(
                     self.model_path,
@@ -1718,6 +1723,7 @@ class SDRunner(BaseRunner):
         except Exception as e:
             if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
                 error = self.cuda_error_message
+                self.clear_memory()
             else:
                 error = f"Error during generation"
             traceback.print_exc() if self.is_dev_env else logger.error(e)
