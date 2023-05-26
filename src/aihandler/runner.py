@@ -1063,29 +1063,29 @@ class SDRunner(BaseRunner):
         self.load_safety_checker(self.action)
 
         # self.apply_cpu_offload()
-        try:
-            if self.is_controlnet:
-                logger.info(f"Setting up controlnet")
-                #generator = torch.manual_seed(self.seed)
-                kwargs["image"] = self._preprocess_for_controlnet(kwargs.get("image"), process_type=self.controlnet_type)
-                #kwargs["generator"] = generator
+        # try:
+        if self.is_controlnet:
+            logger.info(f"Setting up controlnet")
+            #generator = torch.manual_seed(self.seed)
+            kwargs["image"] = self._preprocess_for_controlnet(kwargs.get("image"), process_type=self.controlnet_type)
+            #kwargs["generator"] = generator
 
-                if kwargs.get("strength"):
-                    kwargs["controlnet_conditioning_scale"] = kwargs["strength"]
-                    del kwargs["strength"]
+            if kwargs.get("strength"):
+                kwargs["controlnet_conditioning_scale"] = kwargs["strength"]
+                del kwargs["strength"]
 
-            logger.info(f"Generating image")
-            output = self.call_pipe(**kwargs)
-        except Exception as e:
-            self.error_handler(e)
-            if "`flshattF` is not supported because" in str(e):
-                # try again
-                logger.info("Disabling xformers and trying again")
-                self.pipe.enable_xformers_memory_efficient_attention(attention_op=None)
-                self.pipe.vae.enable_xformers_memory_efficient_attention(attention_op=None)
-                # redo the sample with xformers enabled
-                return self.do_sample(**kwargs)
-            output = None
+        logger.info(f"Generating image")
+        output = self.call_pipe(**kwargs)
+        # except Exception as e:
+        #     self.error_handler(e)
+        #     if "`flshattF` is not supported because" in str(e):
+        #         # try again
+        #         logger.info("Disabling xformers and trying again")
+        #         self.pipe.enable_xformers_memory_efficient_attention(attention_op=None)
+        #         self.pipe.vae.enable_xformers_memory_efficient_attention(attention_op=None)
+        #         # redo the sample with xformers enabled
+        #         return self.do_sample(**kwargs)
+        #     output = None
 
         if self.is_txt2vid:
             return self.handle_txt2vid_output(output)
@@ -1186,16 +1186,17 @@ class SDRunner(BaseRunner):
         :param kwargs:
         :return:
         """
-        logger.info("Initialize compel")
+        logger.info("Initialize compel prompts")
         compel_proc = Compel(
             tokenizer=self.pipe.tokenizer,
             text_encoder=self.pipe.text_encoder,
             truncate_long_prompts=False
         )
-        logger.info("Initialize compel prompt")
-        prompt_embeds = compel_proc(self.prompt)
-        logger.info("Initialize compel negative prompt")
-        negative_prompt_embeds = compel_proc(self.negative_prompt) if self.negative_prompt else None
+        prompt = self.prompt
+        negative_prompt = self.negative_prompt if self.negative_prompt else ""
+        prompt_embeds = compel_proc.build_conditioning_tensor(prompt)
+        negative_prompt_embeds = compel_proc.build_conditioning_tensor(negative_prompt)
+        [prompt_embeds, negative_prompt_embeds] = compel_proc.pad_conditioning_tensors_to_same_length([prompt_embeds, negative_prompt_embeds])
 
         logger.info(f"is_txt2vid: {self.is_txt2vid}")
 
