@@ -108,12 +108,7 @@ class PropertyBase:
         pass
 
 
-class RunAISettings(PropertyBase):
-    """
-    An interface class which stores all of the application settings.
-    This class should be used to interact with the settings database from
-    within the application.
-    """
+class BaseSettings(PropertyBase):
     namespace = ""
 
     def __getattr__(self, name):
@@ -135,6 +130,23 @@ class RunAISettings(PropertyBase):
                 if hasattr(self, name_spaced):
                     return getattr(self, name_spaced)
             raise e
+
+    def set_namespace(self, namespace):
+        self.namespace = namespace
+
+    def reset_settings_to_default(self):
+        pass
+
+    def initialize(self, settings=None):
+        pass
+
+
+class RunAISettings(BaseSettings):
+    """
+    An interface class which stores all of the application settings.
+    This class should be used to interact with the settings database from
+    within the application.
+    """
 
     def initialize(self, settings=None):
         app = self.app
@@ -242,9 +254,6 @@ class RunAISettings(PropertyBase):
         self.import_metadata = BooleanVar(app)
         self.latest_version_check = BooleanVar(app, True)
 
-    def set_namespace(self, namespace):
-        self.namespace = namespace
-
     def reset_settings_to_default(self):
         # pasting / generating
         self.paste_at_working_size.set(False)
@@ -304,3 +313,10 @@ class RunAISettings(PropertyBase):
         self.image_export_metadata_scheduler.set(False)
         self.export_metadata.set(False)
         self.import_metadata.set(False)
+
+
+class PromptSettings(BaseSettings):
+    namespace = "prompts"
+
+    def initialize(self, settings=None):
+        self.prompts = ListVar(self.app, [])
