@@ -212,7 +212,7 @@ class SDRunner(BaseRunner):
     def scheduler(self):
         return self.load_scheduler()
 
-    def load_scheduler(self, schduler_class_name=None):
+    def load_scheduler(self, scheduler_class_name=None):
         import diffusers
 
         if not self.model_path or self.model_path == "":
@@ -221,29 +221,21 @@ class SDRunner(BaseRunner):
 
         if self.is_ckpt_model or self.is_safetensors:  # skip scheduler for ckpt models
             return None
-        if schduler_class_name:
-            scheduler_class = getattr(diffusers, schduler_class_name)
-        else:
-            if self.is_txt2vid:
-                scheduler_class = getattr(diffusers, "DPMSolverMultistepScheduler")
-            elif self.is_upscale:
-                scheduler_class = getattr(diffusers, "EulerDiscreteScheduler")
-            elif self.is_superresolution:
-                scheduler_class = getattr(diffusers, "DDIMScheduler")
-            else:
-                scheduler_class = getattr(diffusers, self.schedulers[self.scheduler_name])
+        scheduler_name = scheduler_class_name if scheduler_class_name else self.schedulers[self.scheduler_name]
+        scheduler_class = getattr(diffusers, scheduler_name)
         kwargs = {
             "subfolder": "scheduler"
         }
         # check if self.scheduler_name contains ++
-        if self.scheduler_name.startswith("DPM"):
+        if scheduler_name.startswith("DPM"):
             kwargs["lower_order_final"] = self.num_inference_steps < 15
-            if self.scheduler_name.find("++") != -1:
+            if scheduler_name.find("++") != -1:
                 kwargs["algorithm_type"] = "dpmsolver++"
             else:
                 kwargs["algorithm_type"] = "dpmsolver"
         if self.current_model_branch:
             kwargs["variant"] = self.current_model_branch
+        logger.info(f"Loading scheduler {self.scheduler_name} with kwargs {kwargs}")
         return scheduler_class.from_pretrained(
             self.model_path,
             local_files_only=self.local_files_only,
@@ -979,7 +971,6 @@ class SDRunner(BaseRunner):
             logger.error("No action provided")
             logger.error(data)
         options = data["options"]
-        print(options)
         self.reload_model = False
         self.controlnet_type = self.options.get("controlnet", "canny")
         self.model_base_path = options["model_base_path"]

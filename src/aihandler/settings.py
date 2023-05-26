@@ -74,9 +74,10 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
     "pix2pix": SCHEDULERS,
     "vid2vid": SCHEDULERS,
     "outpaint": SCHEDULERS,
-    "upscale": SCHEDULERS,
+    "upscale": [EULER],
     "superresolution": [DDIM, LMS, PNDM],
     "controlnet": SCHEDULERS,
+    "txt2vid": [DPMPP_MULTISTEP],
 }
 UPSCALERS = ["None", "Lanczos"]
 
