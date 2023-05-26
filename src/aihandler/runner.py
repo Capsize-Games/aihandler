@@ -1670,6 +1670,7 @@ class SDRunner(BaseRunner):
 
     def _generate(self, data: dict, image_var: ImageVar = None, use_callback: bool = True):
         logger.info("_generate called")
+        self.do_cancel = False
         self._prepare_options(data)
         self._prepare_scheduler()
         self._prepare_model()
