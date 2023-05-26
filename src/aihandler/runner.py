@@ -122,7 +122,55 @@ class SDRunner(BaseRunner):
     embeds_loaded = False
     controlnet_type = "canny"
     options = {}
+    _compel_proc = None
+    _prompt_embeds = None
+    _negative_prompt_embeds = None
     # active_extensions = []  TODO: extensions
+
+    @property
+    def compel_proc(self):
+        if not self._compel_proc:
+            self._compel_proc = Compel(
+                tokenizer=self.pipe.tokenizer,
+                text_encoder=self.pipe.text_encoder,
+                truncate_long_prompts=False
+            )
+        return self._compel_proc
+
+    @compel_proc.setter
+    def compel_proc(self, value):
+        self._compel_proc = value
+
+    @property
+    def prompt_embeds(self):
+        if self._prompt_embeds is None:
+            self.load_prompt_embeds()
+        return self._prompt_embeds
+
+    @prompt_embeds.setter
+    def prompt_embeds(self, value):
+        self._prompt_embeds = value
+
+    @property
+    def negative_prompt_embeds(self):
+        if self._negative_prompt_embeds is None:
+            self.load_prompt_embeds()
+        return self._negative_prompt_embeds
+
+    @negative_prompt_embeds.setter
+    def negative_prompt_embeds(self, value):
+        self._negative_prompt_embeds = value
+
+    def load_prompt_embeds(self):
+        logger.info("Loading prompt embeds")
+        self.compel_proc = None
+        prompt = self.prompt
+        negative_prompt = self.negative_prompt if self.negative_prompt else ""
+        prompt_embeds = self.compel_proc.build_conditioning_tensor(prompt)
+        negative_prompt_embeds = self.compel_proc.build_conditioning_tensor(negative_prompt)
+        [prompt_embeds, negative_prompt_embeds] = self.compel_proc.pad_conditioning_tensors_to_same_length([prompt_embeds, negative_prompt_embeds])
+        self.prompt_embeds = prompt_embeds
+        self.negative_prompt_embeds = negative_prompt_embeds
 
     @property
     def do_mega_scale(self):
@@ -210,8 +258,12 @@ class SDRunner(BaseRunner):
     def scheduler(self):
         return self.load_scheduler()
 
+    _scheduler = None
+
     def load_scheduler(self, force_scheduler_name=None):
         import diffusers
+        if not force_scheduler_name and self._scheduler and not self.do_change_scheduler:
+            return self._scheduler
 
         if not self.model_path or self.model_path == "":
             traceback.print_stack()
@@ -238,12 +290,13 @@ class SDRunner(BaseRunner):
         if self.current_model_branch:
             kwargs["variant"] = self.current_model_branch
         logger.info(f"Loading scheduler {self.scheduler_name} with kwargs {kwargs}")
-        return scheduler_class.from_pretrained(
+        self._scheduler = scheduler_class.from_pretrained(
             self.model_path,
             local_files_only=self.local_files_only,
             use_auth_token=self.data["options"]["hf_token"],
             **kwargs
         )
+        return self._scheduler
 
     @property
     def cuda_error_message(self):
@@ -904,6 +957,9 @@ class SDRunner(BaseRunner):
     def _initialize(self):
         if not self.initialized or self.reload_model:
             logger.info("Initializing model")
+            self.compel_proc = None
+            self.prompt_embeds = None
+            self.negative_prompt_embeds = None
             if self._previous_model != self.current_model:
                 self.unload_unused_models(self.action)
             self._load_model()
@@ -985,6 +1041,9 @@ class SDRunner(BaseRunner):
         if controlnet_type != self.controlnet_type:
             self.controlnet_type = controlnet_type
             self.reload_model = True
+        if self.prompt != options.get(f"{action}_prompt") or self.negative_prompt != options.get(f"{action}_negative_prompt"):
+            self._prompt_embeds = None
+            self._negative_prompt_embeds = None
         self.prompt = options.get(f"{action}_prompt", self.prompt)
         self.negative_prompt = options.get(f"{action}_negative_prompt", self.negative_prompt)
         self.seed = int(options.get(f"{action}_seed", self.seed))
@@ -1189,24 +1248,10 @@ class SDRunner(BaseRunner):
         :param kwargs:
         :return:
         """
-        logger.info("Initialize compel prompts")
-        compel_proc = Compel(
-            tokenizer=self.pipe.tokenizer,
-            text_encoder=self.pipe.text_encoder,
-            truncate_long_prompts=False
-        )
-        prompt = self.prompt
-        negative_prompt = self.negative_prompt if self.negative_prompt else ""
-        prompt_embeds = compel_proc.build_conditioning_tensor(prompt)
-        negative_prompt_embeds = compel_proc.build_conditioning_tensor(negative_prompt)
-        [prompt_embeds, negative_prompt_embeds] = compel_proc.pad_conditioning_tensors_to_same_length([prompt_embeds, negative_prompt_embeds])
-
-        logger.info(f"is_txt2vid: {self.is_txt2vid}")
-
         if self.is_txt2vid:
             return self.pipe(
-                prompt_embeds=prompt_embeds,
-                negative_prompt_embeds=negative_prompt_embeds,
+                prompt_embeds=self.prompt_embeds,
+                negative_prompt_embeds=self.negative_prompt_embeds,
                 guidance_scale=self.guidance_scale,
                 num_inference_steps=self.num_inference_steps,
                 num_frames=self.batch_size,
@@ -1225,8 +1270,8 @@ class SDRunner(BaseRunner):
             )
         elif self.is_superresolution:
             return self.pipe(
-                prompt_embeds=prompt_embeds,
-                negative_prompt_embeds=negative_prompt_embeds,
+                prompt_embeds=self.prompt_embeds,
+                negative_prompt_embeds=self.negative_prompt_embeds,
                 guidance_scale=self.guidance_scale,
                 num_inference_steps=self.num_inference_steps,
                 num_images_per_prompt=1,
@@ -1271,8 +1316,8 @@ class SDRunner(BaseRunner):
                 self.lora_loaded = len(self.loaded_lora) > 0
 
             return self.pipe(
-                prompt_embeds=prompt_embeds,
-                negative_prompt_embeds=negative_prompt_embeds,
+                prompt_embeds=self.prompt_embeds,
+                negative_prompt_embeds=self.negative_prompt_embeds,
                 guidance_scale=self.guidance_scale,
                 num_inference_steps=self.num_inference_steps,
                 num_images_per_prompt=1,
@@ -1569,7 +1614,7 @@ class SDRunner(BaseRunner):
                 image, nsfw_content_detected = self.do_sample(**extra_args)
         except Exception as e:
             if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
-                raise Exception(self.cuda_error_message)
+                self.error_handler(self.cuda_error_message)
             elif "`flshattF` is not supported because" in str(e):
                 # try again
                 logger.info("Disabling xformers and trying again")
