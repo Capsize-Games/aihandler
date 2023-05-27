@@ -109,7 +109,6 @@ class SDRunner(
     _prompt_embeds = None
     _negative_prompt_embeds = None
     _scheduler = None
-    # active_extensions = []  TODO: extensions
 
     @property
     def compel_proc(self):
@@ -897,19 +896,6 @@ class SDRunner(
             print("failed to get output from txt2vid")
         return pil_image, None
 
-    '''
-    TODO: extensions
-    def call_pipe_extension(self, **kwargs):
-        """
-        This calls the call_pipe method on all active extensions
-        :param kwargs:
-        :return:
-        """
-        for extension in self.active_extensions:
-            self.pipe = extension.call_pipe(self.options, self.model_base_path, self.pipe, **kwargs)
-        return self.pipe
-    '''
-
     def call_pipe(self, **kwargs):
         """
         Generate an image using the pipe
@@ -1124,40 +1110,6 @@ class SDRunner(
         self.final_callback()
 
         return image, nsfw_content_detected
-
-    def _blend_images_by_average(self, composite, original):
-        # upscale the original image
-        upscaled_image = original.resize((self.width * 4, self.height * 4), Image.BICUBIC)
-
-        # blend the two images together using average pixel value of the two images
-        blended_image = Image.blend(composite, upscaled_image, 0.5)
-        return blended_image
-
-    def _blend_images_with_mask(self, composite, original, alpha_amount=0.5):
-        """
-        1. Take the original image and upscale it using "bicubic"
-        2. Create a mask that is 0 for the new image and 1 for the original image
-        3. Blend the original image with the new image using the mask
-        """
-        # upscale the original image
-        upscaled_image = original.resize((self.width * 4, self.height * 4), Image.BICUBIC)
-
-        # both images have no alpha channel, they are RGB images
-        # so we need to add an alpha channel to the composite image
-        # so we can blend it with the original image
-        composite = composite.convert("RGBA")
-
-        # create a mask based on alpha_amount, where alpha_amount == 0 means the new image is used and
-        # alpha_amount == 1 means the original image is used
-        mask = Image.new("L", composite.size, int(255 * alpha_amount))
-
-        # paste the mask into the composite image
-        composite.putalpha(mask)
-
-        # blend the composite image with the original image
-        blended_image = Image.composite(composite, upscaled_image, mask)
-
-        return blended_image
 
     def _generate(self, data: dict, image_var: ImageVar = None, use_callback: bool = True):
         logger.info("_generate called")
