@@ -6,13 +6,8 @@ from aihandler.base_runner import BaseRunner
 from aihandler.qtvar import ImageVar
 import traceback
 import torch
-from aihandler.settings import LOG_LEVEL
 from aihandler.logger import logger
-import logging
-logging.disable(LOG_LEVEL)
-logger.set_level(logger.DEBUG)
 from PIL import Image
-from aihandler.settings import AVAILABLE_SCHEDULERS_BY_ACTION
 from aihandler.mixins.merge_mixin import MergeMixin
 from aihandler.mixins.lora_mixin import LoraMixin
 from aihandler.mixins.controlnet_mixin import ControlnetMixin
@@ -21,6 +16,7 @@ from aihandler.mixins.embedding_mixin import EmbeddingMixin
 from aihandler.mixins.txttovideo_mixin import TexttovideoMixin
 from aihandler.mixins.compel_mixin import CompelMixin
 from aihandler.mixins.scheduler_mixin import SchedulerMixin
+from aihandler.mixins.model_mixin import ModelMixin
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
@@ -35,14 +31,14 @@ class SDRunner(
     EmbeddingMixin,
     TexttovideoMixin,
     CompelMixin,
-    SchedulerMixin
+    SchedulerMixin,
+    ModelMixin
 ):
     _current_model: str = ""
     _previous_model: str = ""
     initialized: bool = False
     _current_sample = 0
     _reload_model: bool = False
-    action: str = ""
     do_cancel = False
     safety_checker = None
     current_model_branch = None
@@ -291,7 +287,6 @@ class SDRunner(
             return f"Unable to run the model at {self.width}x{self.height} resolution using the DDIM scheduler. Try changing the scheduler to LMS or PNDM and try again."
 
         return f"You may not have enough GPU memory to run the model at {self.width}x{self.height} resolution. Potential solutions: try again, restart the application, use a smaller size, upgrade your GPU."
-        # clear cache
 
     @property
     def is_pipe_loaded(self):
@@ -431,181 +426,7 @@ class SDRunner(
         torch.cuda.empty_cache()
         gc.collect()
 
-    def unload_unused_models(self, skip_model=None):
-        """
-        Unload all models except the one specified in skip_model
-        :param skip_model: do not unload this model (typically the one currently in use)
-        :return:
-        """
-        logger.info("Unloading existing model")
-        do_clear_memory = False
-        for model_type in [
-            "txt2img",
-            "img2img",
-            "pix2pix",
-            "outpaint",
-            "depth2img",
-            "superresolution",
-            "controlnet",
-            "txt2vid",
-            "upscale",
-        ]:
-            if skip_model is None or skip_model != model_type:
-                model = self.__getattribute__(model_type)
-                if model is not None:
-                    self.__setattr__(model_type, None)
-                    do_clear_memory = True
-        if do_clear_memory:
-            self.clear_memory()
-
-    def _load_ckpt_model(
-        self, 
-        path=None, 
-        is_controlnet=False,
-        is_safetensors=False,
-        data_type=None,
-        do_nsfw_filter=False,
-        device=None,
-        scheduler_name=None
-    ):
-        logger.debug(f"Loading ckpt file, is safetensors {is_safetensors}")
-        if not data_type:
-            data_type = self.data_type
-        try:
-            print("Path", path)
-            pipeline = self.download_from_original_stable_diffusion_ckpt(
-                path=path,
-                is_safetensors=is_safetensors,
-                do_nsfw_filter=do_nsfw_filter,
-                device=device,
-                scheduler_name=scheduler_name
-            )
-            if is_controlnet:
-                pipeline = self.load_controlnet_from_ckpt(pipeline)
-        except Exception as e:
-            print("Something went wrong loading the model file", e)
-            self.error_handler("Unable to load ckpt file")
-            raise e
-        # to half
-        # determine which data type to move the model to
-        pipeline.vae.to(data_type)
-        pipeline.text_encoder.to(data_type)
-        pipeline.unet.to(data_type)
-        if self.do_nsfw_filter:
-            pipeline.safety_checker.half()
-        return pipeline
-
-    def download_from_original_stable_diffusion_ckpt(
-        self, 
-        config="v1.yaml",
-        path=None,
-        is_safetensors=False,
-        scheduler_name=None,
-        do_nsfw_filter=False,
-        device=None
-    ):
-        from diffusers.pipelines.stable_diffusion.convert_from_ckpt import \
-            download_from_original_stable_diffusion_ckpt
-        from diffusers import StableDiffusionImg2ImgPipeline
-        if not scheduler_name:
-            scheduler_name = self.scheduler_name
-        if not path:
-            path = f"{self.settings_manager.settings.model_base_path.get()}/{self.model}"
-        if not device:
-            device = self.device
-        try:
-            # check if config is a file
-            if not os.path.exists(config):
-                HERE = os.path.dirname(os.path.abspath(__file__))
-                config = os.path.join(HERE, config)
-            pipe = download_from_original_stable_diffusion_ckpt(
-                checkpoint_path=path,
-                original_config_file=config,
-                device=device,
-                from_safetensors=is_safetensors,
-                load_safety_checker=do_nsfw_filter,
-                local_files_only=self.local_files_only,
-                pipeline_class=StableDiffusionImg2ImgPipeline if self.is_controlnet else self.action_diffuser
-            )
-            pipe.scheduler = self.scheduler
-            return pipe
-        # find exception: RuntimeError: Error(s) in loading state_dict for UNet2DConditionModel
-        except RuntimeError as e:
-            if e.args[0].startswith("Error(s) in loading state_dict for UNet2DConditionModel") and config  == "v1.yaml":
-                logger.info("Failed to load model with v1.yaml config file, trying v2.yaml")
-                return self.download_from_original_stable_diffusion_ckpt(
-                    config="v2.yaml",
-                    path=path,
-                    is_safetensors=is_safetensors,
-                    scheduler_name=scheduler_name,
-                    do_nsfw_filter=do_nsfw_filter,
-                    device=device
-                )
-            else:
-                print("Something went wrong loading the model file", e)
-                raise e
-
-    def _load_model(self):
-        logger.info("Loading model...")
-        self.lora_loaded = False
-        self.embeds_loaded = False
-        if self.is_ckpt_model or self.is_safetensors:
-            kwargs = {}
-        else:
-            kwargs = {
-                "torch_dtype": self.data_type,
-                "scheduler": self.scheduler,
-                # "low_cpu_mem_usage": True, # default is already set to true
-                "variant": self.current_model_branch
-            }
-            if self.current_model_branch:
-                kwargs["variant"] = self.current_model_branch
-
-        # move all models except for our current action to the CPU
-        if not self.initialized or self.reload_model:
-            self.unload_unused_models()
-
-        # special load case for img2img if txt2img is already loaded
-        if self.is_img2img and self.txt2img is not None:
-            self.img2img = self.action_diffuser(**self.txt2img.components)
-        elif self.is_txt2img and self.img2img is not None:
-            self.txt2img = self.action_diffuser(**self.img2img.components)
-        elif self.pipe is None or self.reload_model:
-            logger.debug("Loading model from scratch")
-            if self.is_ckpt_model or self.is_safetensors:
-                logger.debug("Loading ckpt or safetensors model")
-                self.pipe = self._load_ckpt_model(
-                    is_controlnet=self.is_controlnet,
-                    is_safetensors=self.is_safetensors,
-                    do_nsfw_filter=self.do_nsfw_filter
-                )
-            else:
-                logger.debug("Loading from diffusers pipeline")
-                if self.is_controlnet:
-                    kwargs["controlnet"] = self.load_controlnet()
-                if self.is_superresolution:
-                    kwargs["low_res_scheduler"] = self.load_scheduler("DDPM")
-                print(kwargs)
-                self.pipe = self.action_diffuser.from_pretrained(
-                    self.model_path,
-                    local_files_only=self.local_files_only,
-                    use_auth_token=self.data["options"]["hf_token"],
-                    **kwargs
-                )
-
-            if self.is_controlnet:
-                self.load_controlnet_scheduler()
-
-            if hasattr(self.pipe, "safety_checker") and self.do_nsfw_filter:
-                self.safety_checker = self.pipe.safety_checker
-
-        # store the model_path
-        self.pipe.model_path = self.model_path
-
-        self.load_learned_embed_in_clip()
-        self.apply_memory_efficient_settings()
-
-    def _initialize(self):
+    def initialize(self):
         if not self.initialized or self.reload_model:
             logger.info("Initializing model")
             self.compel_proc = None
@@ -617,39 +438,7 @@ class SDRunner(
             self.reload_model = False
             self.initialized = True
 
-    def _is_ckpt_file(self, model):
-        if not model:
-            raise ValueError("ckpt path is empty")
-        return model.endswith(".ckpt")
-
-    def _is_safetensor_file(self, model):
-        if not model:
-            raise ValueError("safetensors path is empty")
-        return model.endswith(".safetensors")
-
-    def _do_reload_model(self):
-        logger.info("Reloading model")
-        if self.reload_model:
-            self._load_model()
-
-    def _prepare_model(self):
-        logger.info("Prepare model")
-        # get model and switch to it
-
-        # get models from database
-        model_name = self.options.get(f"{self.action}_model", None)
-
-        self.set_message(f"Loading model {model_name}")
-
-        self._previous_model = self.current_model
-
-        if self._is_ckpt_file(model_name):
-            self.current_model = model_name
-        else:
-            self.current_model = self.options.get(f"{self.action}_model_path", None)
-            self.current_model_branch = self.options.get(f"{self.action}_model_branch", None)
-
-    def _prepare_options(self, data):
+    def prepare_options(self, data):
         self.set_message(f"Preparing options...")
         print(data)
         action = data["action"]
@@ -817,23 +606,10 @@ class SDRunner(
                 # cross_attention_kwargs={"scale": 0.5},
                 **kwargs
             )
-    
-    def _sample_diffusers_model(self, data: dict):
-        image = None
-        nsfw_content_detected = None
 
-        # disable warnings
-        import warnings
-        warnings.filterwarnings("ignore")
-        from pytorch_lightning import seed_everything
-
-        # disable info
-        import logging
-        logging.getLogger("lightning").setLevel(logging.WARNING)
-        logging.getLogger("lightning_fabric.utilities.seed").setLevel(logging.WARNING)
-
-        seed_everything(self.seed)
+    def prepare_extra_args(self, data, image, mask):
         action = self.action
+
         extra_args = {
         }
 
@@ -841,91 +617,50 @@ class SDRunner(
             extra_args["width"] = self.width
             extra_args["height"] = self.height
         if action == "img2img":
-            image = data["options"]["image"]
             extra_args["image"] = image
             extra_args["strength"] = self.strength
         elif action == "controlnet":
-            image = data["options"]["image"]
             extra_args["image"] = image
             extra_args["strength"] = self.strength
         elif action == "pix2pix":
-            image = data["options"]["image"]
             extra_args["image"] = image
             extra_args["image_guidance_scale"] = self.image_guidance_scale
         elif action == "depth2img":
-            image = data["options"]["image"]
             # todo: get mask to work
-            #mask_bytes = data["options"]["mask"]
-            #mask = Image.frombytes("RGB", (self.width, self.height), mask_bytes)
-            #extra_args["depth_map"] = mask
+            # mask_bytes = data["options"]["mask"]
+            # mask = Image.frombytes("RGB", (self.width, self.height), mask_bytes)
+            # extra_args["depth_map"] = mask
             extra_args["image"] = image
             extra_args["strength"] = self.strength
         elif action == "txt2vid":
             pass
         elif action == "upscale":
-            image = data["options"]["image"]
             extra_args["image"] = image
             extra_args["image_guidance_scale"] = self.image_guidance_scale
         elif self.is_superresolution:
-            image = data["options"]["image"]
             if self.do_mega_scale:
                 pass
             else:
                 extra_args["image"] = image
         elif action == "outpaint":
-            image = data["options"]["image"]
-            mask = data["options"]["mask"]
             extra_args["image"] = image
             extra_args["mask_image"] = mask
             extra_args["width"] = self.width
             extra_args["height"] = self.height
+        return extra_args
+
+    def sample_diffusers_model(self, data: dict):
+        from pytorch_lightning import seed_everything
+        image = data["options"].get("image", None)
+        mask = data["options"].get("mask", None)
+        nsfw_content_detected = None
+        seed_everything(self.seed)
+        extra_args = self.prepare_extra_args(data, image, mask)
 
         # do the sample
         try:
             if self.do_mega_scale:
-                # first we will downscale the original image using the PIL algorithm
-                # called "bicubic" which is a high quality algorithm
-                # then we will upscale the image using the super resolution model
-                # then we will upscale the image using the PIL algorithm called "bicubic"
-                # to the desired size
-                # the new dimensions of scaled_w and scaled_h should be the width and height
-                # of the image that current image but aspect ratio scaled to 128
-                # so if the image is 256x256 then the scaled_w and scaled_h should be 128x128 but
-                # if the image is 512x256 then the scaled_w and scaled_h should be 128x64
-
-                max_in_width = 512
-                scale_size = 256
-                in_width = self.width
-                in_height = self.height
-                original_image_width = data["options"]["original_image_width"]
-                original_image_height = data["options"]["original_image_height"]
-
-                if original_image_width > max_in_width:
-                    scale_factor = max_in_width / original_image_width
-                    in_width = int(original_image_width * scale_factor)
-                    in_height = int(original_image_height * scale_factor)
-                    scale_size = int(scale_size * scale_factor)
-
-                if in_width > max_in_width:
-                    # scale down in_width and in_height by scale_size
-                    # but keep the aspect ratio
-                    in_width = scale_size
-                    in_height = int((scale_size / original_image_width) * original_image_height)
-
-                # now we will scale the image to the new dimensions
-                # and then upscale it using the super resolution model
-                # and then downscale it using the PIL bicubic algorithm
-                # to the original dimensions
-                # this will give us a high quality image
-                scaled_w = int(in_width * (scale_size / in_height))
-                scaled_h = scale_size
-                downscaled_image = image.resize((scaled_w, scaled_h), Image.BILINEAR)
-                extra_args["image"] = downscaled_image
-                upscaled_image = self.do_sample(**extra_args)
-                # upscale back to self.width and self.height
-                image = upscaled_image #.resize((original_image_width, original_image_height), Image.BILINEAR)
-
-                return image
+                return self.do_mega_scale_sample(data, image, extra_args)
             else:
                 image, nsfw_content_detected = self.do_sample(**extra_args)
         except Exception as e:
@@ -939,7 +674,7 @@ class SDRunner(
                 self.pipe.vae.enable_xformers_memory_efficient_attention(
                     attention_op=None)
                 # redo the sample with xformers enabled
-                return self._sample_diffusers_model(data)
+                return self.sample_diffusers_model(data)
             else:
                 traceback.print_exc()
                 self.error_handler("Something went wrong while generating image")
@@ -949,13 +684,58 @@ class SDRunner(
 
         return image, nsfw_content_detected
 
-    def _generate(self, data: dict, image_var: ImageVar = None, use_callback: bool = True):
-        logger.info("_generate called")
+    def do_mega_scale_sample(self, data, image, extra_args):
+        # first we will downscale the original image using the PIL algorithm
+        # called "bicubic" which is a high quality algorithm
+        # then we will upscale the image using the super resolution model
+        # then we will upscale the image using the PIL algorithm called "bicubic"
+        # to the desired size
+        # the new dimensions of scaled_w and scaled_h should be the width and height
+        # of the image that current image but aspect ratio scaled to 128
+        # so if the image is 256x256 then the scaled_w and scaled_h should be 128x128 but
+        # if the image is 512x256 then the scaled_w and scaled_h should be 128x64
+
+        max_in_width = 512
+        scale_size = 256
+        in_width = self.width
+        in_height = self.height
+        original_image_width = data["options"]["original_image_width"]
+        original_image_height = data["options"]["original_image_height"]
+
+        if original_image_width > max_in_width:
+            scale_factor = max_in_width / original_image_width
+            in_width = int(original_image_width * scale_factor)
+            in_height = int(original_image_height * scale_factor)
+            scale_size = int(scale_size * scale_factor)
+
+        if in_width > max_in_width:
+            # scale down in_width and in_height by scale_size
+            # but keep the aspect ratio
+            in_width = scale_size
+            in_height = int((scale_size / original_image_width) * original_image_height)
+
+        # now we will scale the image to the new dimensions
+        # and then upscale it using the super resolution model
+        # and then downscale it using the PIL bicubic algorithm
+        # to the original dimensions
+        # this will give us a high quality image
+        scaled_w = int(in_width * (scale_size / in_height))
+        scaled_h = scale_size
+        downscaled_image = image.resize((scaled_w, scaled_h), Image.BILINEAR)
+        extra_args["image"] = downscaled_image
+        upscaled_image = self.do_sample(**extra_args)
+        # upscale back to self.width and self.height
+        image = upscaled_image  # .resize((original_image_width, original_image_height), Image.BILINEAR)
+
+        return image
+
+    def generate(self, data: dict, image_var: ImageVar = None, use_callback: bool = True):
+        logger.info("generate called")
         self.do_cancel = False
-        self._prepare_options(data)
+        self.prepare_options(data)
         self._prepare_scheduler()
         self._prepare_model()
-        self._initialize()
+        self.initialize()
         self._change_scheduler()
 
         self.apply_memory_efficient_settings()
@@ -965,7 +745,7 @@ class SDRunner(
             total_to_generate = self.batch_size
         for n in range(total_to_generate):
             self.current_sample = n
-            image, nsfw_content_detected = self._sample_diffusers_model(data)
+            image, nsfw_content_detected = self.sample_diffusers_model(data)
             if use_callback:
                 self.image_handler(image, data, nsfw_content_detected)
             else:
@@ -995,7 +775,7 @@ class SDRunner(
         # convert _latents to image
         image = None
         if not self.is_txt2vid:
-            image = self._latents_to_image(_latents)
+            image = self.latents_to_image(_latents)
         data = self.data
         if self.is_txt2vid:
             data["video_filename"] = self.txt2vid_file
@@ -1008,9 +788,7 @@ class SDRunner(
         )
         pass
 
-    def _latents_to_image(self, latents: torch.Tensor):
-        # convert tensor to image
-        #image = self.pipe.vae.decoder(latents)
+    def latents_to_image(self, latents: torch.Tensor):
         image = latents.permute(0, 2, 3, 1)
         image = image.detach().cpu().numpy()
         image = image[0]
@@ -1039,7 +817,7 @@ class SDRunner(
 
         error = None
         try:
-            self._generate(data, image_var=image_var, use_callback=use_callback)
+            self.generate(data, image_var=image_var, use_callback=use_callback)
         except OSError as e:
             err = e.args[0]
             logger.error(err)
@@ -1064,7 +842,7 @@ class SDRunner(
                 # check if we have an internet connection
                 self.set_message("Downloading model files...")
                 self.local_files_only = False
-                self._initialize()
+                self.initialize()
                 return self.generator_sample(data, image_var, error_var)
             elif not self.has_internet_connection:
                 self.error_handler("Please check your internet connection and try again.")

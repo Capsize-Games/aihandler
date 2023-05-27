@@ -28,11 +28,11 @@ class MergeMixin:
         #         f"model_base_path": self.model_path,
         #     }
         # }
-        # self._prepare_options(data)
+        # self.prepare_options(data)
         # self._prepare_scheduler()
         # self._prepare_model()
         # print(data)
-        # self._initialize()
+        # self.initialize()
         PipeCLS = StableDiffusionPipeline
         if action == "outpaint":
             PipeCLS = StableDiffusionInpaintPipeline
