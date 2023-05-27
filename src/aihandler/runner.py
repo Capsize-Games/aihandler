@@ -1,10 +1,8 @@
 import os
 import gc
-import cv2
 import numpy as np
 import requests
 from aihandler.base_runner import BaseRunner
-from aihandler.controlnet_utils import ade_palette
 from aihandler.qtvar import ImageVar
 import traceback
 import torch
@@ -15,11 +13,12 @@ import logging
 logging.disable(LOG_LEVEL)
 logger.set_level(logger.DEBUG)
 from PIL import Image
-from controlnet_aux import HEDdetector, MLSDdetector, OpenposeDetector
 from compel import Compel
-from collections import defaultdict
-from safetensors.torch import load_file
 from aihandler.settings import AVAILABLE_SCHEDULERS_BY_ACTION
+from aihandler.mixins.merge_mixin import MergeMixin
+from aihandler.mixins.lora_mixin import LoraMixin
+from aihandler.mixins.controlnet_mixin import ControlnetMixin
+from aihandler.mixins.memory_efficient_mixin import MemoryEfficientMixin
 
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
@@ -33,7 +32,13 @@ def image_to_byte_array(image):
     return img_byte_arr
 
 
-class SDRunner(BaseRunner):
+class SDRunner(
+    BaseRunner,
+    MergeMixin,
+    LoraMixin,
+    ControlnetMixin,
+    MemoryEfficientMixin
+):
     _current_model: str = ""
     _previous_model: str = ""
     scheduler_name: str = "Euler a"
@@ -58,12 +63,6 @@ class SDRunner(BaseRunner):
     pos_y: int = 0
     outpaint_box_rect = None
     hf_token: str = ""
-    enable_model_cpu_offload: bool = False
-    use_attention_slicing: bool = False
-    use_tf32: bool = False
-    use_enable_vae_slicing: bool = False
-    use_xformers: bool = False
-    use_tiled_vae: bool = False
     reload_model: bool = False
     action: str = ""
     options: dict = {}
@@ -99,7 +98,6 @@ class SDRunner(BaseRunner):
     pix2pix = None
     outpaint = None
     depth2img = None
-    controlnet = None
     superresolution = None
     txt2vid = None
     upscale = None
@@ -107,24 +105,15 @@ class SDRunner(BaseRunner):
     local_files_only = True
     lora_loaded = False
     loaded_lora = []
-
-    # memory settings
-    _use_last_channels = True
-    _use_enable_sequential_cpu_offload = True
-    _use_attention_slicing = True
-    _use_tf32 = True
-    _use_enable_vae_slicing = True
-    _use_xformers = False
-    _use_tiled_vae = False
     _settings = None
     _action = None
     do_change_scheduler = False
     embeds_loaded = False
-    controlnet_type = "canny"
     options = {}
     _compel_proc = None
     _prompt_embeds = None
     _negative_prompt_embeds = None
+    _scheduler = None
     # active_extensions = []  TODO: extensions
 
     @property
@@ -259,46 +248,6 @@ class SDRunner(BaseRunner):
     def scheduler(self):
         return self.load_scheduler()
 
-    _scheduler = None
-
-    def load_scheduler(self, force_scheduler_name=None):
-        import diffusers
-        if not force_scheduler_name and self._scheduler and not self.do_change_scheduler:
-            return self._scheduler
-
-        if not self.model_path or self.model_path == "":
-            traceback.print_stack()
-            raise Exception("Chicken / egg problem, model path not set")
-
-        if self.is_ckpt_model or self.is_safetensors:  # skip scheduler for ckpt models
-            return None
-
-        scheduler_name = force_scheduler_name if force_scheduler_name else self.scheduler_name
-        if not force_scheduler_name and scheduler_name not in AVAILABLE_SCHEDULERS_BY_ACTION[self.action]:
-            scheduler_name = AVAILABLE_SCHEDULERS_BY_ACTION[self.action][0]
-        scheduler_class_name = self.schedulers[scheduler_name]
-        scheduler_class = getattr(diffusers, scheduler_class_name)
-        kwargs = {
-            "subfolder": "scheduler"
-        }
-        # check if self.scheduler_name contains ++
-        if scheduler_name.startswith("DPM"):
-            kwargs["lower_order_final"] = self.num_inference_steps < 15
-            if scheduler_name.find("++") != -1:
-                kwargs["algorithm_type"] = "dpmsolver++"
-            else:
-                kwargs["algorithm_type"] = "dpmsolver"
-        if self.current_model_branch:
-            kwargs["variant"] = self.current_model_branch
-        logger.info(f"Loading scheduler {self.scheduler_name} with kwargs {kwargs}")
-        self._scheduler = scheduler_class.from_pretrained(
-            self.model_path,
-            local_files_only=self.local_files_only,
-            use_auth_token=self.data["options"]["hf_token"],
-            **kwargs
-        )
-        return self._scheduler
-
     @property
     def cuda_error_message(self):
         if self.is_superresolution and self.scheduler_name == "DDIM":
@@ -375,82 +324,8 @@ class SDRunner(BaseRunner):
             raise ValueError(f"Invalid action {self.action} unable to set pipe")
 
     @property
-    def use_last_channels(self):
-        return self._use_last_channels and not self.is_txt2vid
-
-    @use_last_channels.setter
-    def use_last_channels(self, value):
-        self._use_last_channels = value
-
-    @property
-    def use_enable_sequential_cpu_offload(self):
-        return self._use_enable_sequential_cpu_offload
-
-    @use_enable_sequential_cpu_offload.setter
-    def use_enable_sequential_cpu_offload(self, value):
-        self._use_enable_sequential_cpu_offload = value
-
-    @property
-    def use_attention_slicing(self):
-        return self._use_attention_slicing
-
-    @use_attention_slicing.setter
-    def use_attention_slicing(self, value):
-        self._use_attention_slicing = value
-
-    @property
-    def use_tf32(self):
-        return self._use_tf32
-
-    @use_tf32.setter
-    def use_tf32(self, value):
-        self._use_tf32 = value
-
-    @property
-    def enable_vae_slicing(self):
-        return self._enable_vae_slicing
-
-    @enable_vae_slicing.setter
-    def enable_vae_slicing(self, value):
-        self._enable_vae_slicing = value
-
-    @property
     def cuda_is_available(self):
         return torch.cuda.is_available()
-
-    @property
-    def use_xformers(self):
-        if not self.cuda_is_available:
-            return False
-        return self._use_xformers
-
-    @use_xformers.setter
-    def use_xformers(self, value):
-        self._use_xformers = value
-
-    @property
-    def use_accelerated_transformers(self):
-        return self._use_accelerated_transformers
-
-    @use_accelerated_transformers.setter
-    def use_accelerated_transformers(self, value):
-        self._use_accelerated_transformers = value
-
-    @property
-    def use_torch_compile(self):
-        return self._use_torch_compile
-
-    @use_torch_compile.setter
-    def use_torch_compile(self, value):
-        self._use_torch_compile = value
-
-    @property
-    def use_tiled_vae(self):
-        return self._use_tiled_vae
-
-    @use_tiled_vae.setter
-    def use_tiled_vae(self, value):
-        self._use_tiled_vae = value
 
     @property
     def action_diffuser(self):
@@ -506,35 +381,6 @@ class SDRunner(BaseRunner):
         return "cuda" if self.cuda_is_available else "cpu"
 
     @property
-    def controlnet_model(self):
-        if self.controlnet_type == "canny":
-            return "lllyasviel/control_v11p_sd15_canny"
-        elif self.controlnet_type == "depth":
-            return "lllyasviel/control_v11f1p_sd15_depth"
-        elif self.controlnet_type == "mlsd":
-            return "lllyasviel/control_v11p_sd15_mlsd"
-        elif self.controlnet_type == "normal":
-            return "lllyasviel/control_v11p_sd15_normalbae"
-        elif self.controlnet_type == "scribble":
-            return "lllyasviel/control_v11p_sd15_scribble"
-        elif self.controlnet_type == "segmentation":
-            return "lllyasviel/control_v11p_sd15_seg"
-        elif self.controlnet_type == "lineart":
-            return "lllyasviel/control_v11p_sd15_lineart"
-        elif self.controlnet_type == "openpose":
-            return "lllyasviel/control_v11p_sd15_openpose"
-        elif self.controlnet_type == "softedge":
-            return "lllyasviel/control_v11p_sd15_softedge"
-        elif self.controlnet_type == "pixel2pixel":
-            return "lllyasviel/control_v11e_sd15_ip2p"
-        elif self.controlnet_type == "inpaint":
-            return "lllyasviel/control_v11p_sd15_inpaint"
-        elif self.controlnet_type == "shuffle":
-            return "lllyasviel/control_v11e_sd15_shuffle"
-        elif self.controlnet_type == "anime":
-            return "lllyasviel/control_v11p_sd15s2_lineart_anime"
-
-    @property
     def has_internet_connection(self):
         try:
             response = requests.get('https://huggingface.co/')
@@ -551,6 +397,44 @@ class SDRunner(BaseRunner):
         logger.info("Clearing memory")
         torch.cuda.empty_cache()
         gc.collect()
+
+    def load_scheduler(self, force_scheduler_name=None):
+        import diffusers
+        if not force_scheduler_name and self._scheduler and not self.do_change_scheduler:
+            return self._scheduler
+
+        if not self.model_path or self.model_path == "":
+            traceback.print_stack()
+            raise Exception("Chicken / egg problem, model path not set")
+
+        if self.is_ckpt_model or self.is_safetensors:  # skip scheduler for ckpt models
+            return None
+
+        scheduler_name = force_scheduler_name if force_scheduler_name else self.scheduler_name
+        if not force_scheduler_name and scheduler_name not in AVAILABLE_SCHEDULERS_BY_ACTION[self.action]:
+            scheduler_name = AVAILABLE_SCHEDULERS_BY_ACTION[self.action][0]
+        scheduler_class_name = self.schedulers[scheduler_name]
+        scheduler_class = getattr(diffusers, scheduler_class_name)
+        kwargs = {
+            "subfolder": "scheduler"
+        }
+        # check if self.scheduler_name contains ++
+        if scheduler_name.startswith("DPM"):
+            kwargs["lower_order_final"] = self.num_inference_steps < 15
+            if scheduler_name.find("++") != -1:
+                kwargs["algorithm_type"] = "dpmsolver++"
+            else:
+                kwargs["algorithm_type"] = "dpmsolver"
+        if self.current_model_branch:
+            kwargs["variant"] = self.current_model_branch
+        logger.info(f"Loading scheduler {self.scheduler_name} with kwargs {kwargs}")
+        self._scheduler = scheduler_class.from_pretrained(
+            self.model_path,
+            local_files_only=self.local_files_only,
+            use_auth_token=self.data["options"]["hf_token"],
+            **kwargs
+        )
+        return self._scheduler
 
     def unload_unused_models(self, skip_model=None):
         """
@@ -579,45 +463,6 @@ class SDRunner(BaseRunner):
         if do_clear_memory:
             self.clear_memory()
 
-    def load_controlnet_from_ckpt(self, pipeline):
-        from diffusers import ControlNetModel, UniPCMultistepScheduler
-        from diffusers import StableDiffusionControlNetPipeline
-        controlnet = ControlNetModel.from_pretrained(
-            self.controlnet_model,
-            local_files_only=self.local_files_only,
-            torch_dtype=self.data_type
-        )
-        pipeline.controlnet = controlnet
-        pipeline = StableDiffusionControlNetPipeline(
-            vae=pipeline.vae,
-            text_encoder=pipeline.text_encoder,
-            tokenizer=pipeline.tokenizer,
-            unet=pipeline.unet,
-            controlnet=controlnet,
-            scheduler=pipeline.scheduler,
-            safety_checker=pipeline.safety_checker,
-            feature_extractor=pipeline.feature_extractor,
-            requires_safety_checker=self.do_nsfw_filter,
-        )
-        if self.enable_model_cpu_offload:
-            pipeline.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
-            pipeline.enable_model_cpu_offload()
-        return pipeline
-
-    def load_controlnet(self):
-        from diffusers import ControlNetModel
-        return ControlNetModel.from_pretrained(
-            self.controlnet_model,
-            local_files_only=self.local_files_only,
-            torch_dtype=self.data_type
-        )
-
-    def load_controlnet_scheduler(self):
-        if self.enable_model_cpu_offload:
-            from diffusers import UniPCMultistepScheduler
-            self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
-            self.pipe.enable_model_cpu_offload()
-
     def _load_ckpt_model(
         self, 
         path=None, 
@@ -632,6 +477,7 @@ class SDRunner(BaseRunner):
         if not data_type:
             data_type = self.data_type
         try:
+            print("Path", path)
             pipeline = self.download_from_original_stable_diffusion_ckpt(
                 path=path,
                 is_safetensors=is_safetensors,
@@ -694,6 +540,7 @@ class SDRunner(BaseRunner):
             if not os.path.exists(config):
                 HERE = os.path.dirname(os.path.abspath(__file__))
                 config = os.path.join(HERE, config)
+            print("path", path)
             return download_from_original_stable_diffusion_ckpt(
                 checkpoint_path=path,
                 original_config_file=config,
@@ -834,126 +681,6 @@ class SDRunner(BaseRunner):
                 except Exception as e:
                     logger.warning(e)
             self.settings_manager.settings.available_embeddings.set(", ".join(tokens))
-
-    def apply_last_channels(self):
-        if self.use_last_channels:
-            logger.debug("Enabling torch.channels_last")
-            self.pipe.unet.to(memory_format=torch.channels_last)
-        else:
-            logger.debug("Disabling torch.channels_last")
-            self.pipe.unet.to(memory_format=torch.contiguous_format)
-
-    def apply_vae_slicing(self):
-        if self.action not in ["img2img", "depth2img", "pix2pix", "outpaint", "superresolution", "controlnet", "upscale"]:
-            if self.use_enable_vae_slicing:
-                logger.debug("Enabling vae slicing")
-                self.pipe.enable_vae_slicing()
-            else:
-                logger.debug("Disabling vae slicing")
-                self.pipe.disable_vae_slicing()
-
-    def apply_attention_slicing(self):
-        if self.use_attention_slicing:
-            logger.debug("Enabling attention slicing")
-            self.pipe.enable_attention_slicing()
-        else:
-            logger.debug("Disabling attention slicing")
-            self.pipe.disable_attention_slicing()
-
-    def apply_tiled_vae(self):
-        if self.use_tiled_vae:
-            logger.info("Applying tiled vae")
-            # from diffusers import UniPCMultistepScheduler
-            # self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
-            try:
-                self.pipe.vae.enable_tiling()
-            except AttributeError:
-                logger.warning("Tiled vae not supported for this model")
-
-    def apply_xformers(self):
-        if self.use_xformers:
-            logger.info("Applying xformers")
-            from xformers.ops import MemoryEfficientAttentionFlashAttentionOp
-            self.pipe.enable_xformers_memory_efficient_attention()
-        else:
-            logger.info("Disabling xformers")
-            self.pipe.disable_xformers_memory_efficient_attention()
-
-    def apply_accelerated_transformers(self):
-        if self.use_accelerated_transformers:
-            from diffusers.models.attention_processor import AttnProcessor2_0
-            self.pipe.unet.set_attn_processor(AttnProcessor2_0())
-
-    def save_pipeline(self):
-        if self.use_torch_compile:
-            file_path = os.path.join(os.path.join(self.model_base_path, self.model_path, "compiled"))
-            if not os.path.exists(file_path):
-                os.makedirs(file_path)
-            torch.save(self.pipe.unet.state_dict(), os.path.join(file_path, "unet.pt"))
-
-    def apply_torch_compile(self):
-        """
-        Torch compile has limited support
-            - No support for Windows
-            - Fails with the compiled version of AI Runner
-        Because of this, we are disabling it until a better solution is found.
-
-        if self.use_torch_compile:
-            logger.debug("Compiling torch model")
-            self.pipe.unet = torch.compile(self.pipe.unet)
-        load unet state_dict from disc
-        file_path = os.path.join(os.path.join(self.model_base_path, self.model_path, "compiled"))
-        if os.path.exists(file_path):
-            logger.debug("Loading compiled torch model")
-            state_dict = torch.load(os.path.join(file_path, "unet.pt"), map_location="cpu")
-            self.pipe.unet.state_dict = state_dict
-        """
-        return
-
-    def move_pipe_to_cuda(self, pipe):
-        if not self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
-            logger.info("Moving to cuda")
-            pipe.to("cuda", torch.half) if self.cuda_is_available else None
-        return pipe
-
-    def move_pipe_to_cpu(self, pipe):
-        logger.debug("Moving to cpu")
-        try:
-            pipe.to("cpu", torch.float32)
-        except NotImplementedError:
-            logger.warning("Not implemented error when moving to cpu")
-        return pipe
-
-    def apply_cpu_offload(self):
-        if self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
-            logger.debug("Enabling sequential cpu offload")
-            self.pipe = self.move_pipe_to_cpu(self.pipe)
-            try:
-                self.pipe.enable_sequential_cpu_offload()
-            except NotImplementedError:
-                logger.warning("Not implemented error when applying sequential cpu offload")
-                self.pipe = self.move_pipe_to_cuda(self.pipe)
-
-    def apply_model_offload(self):
-        if self.enable_model_cpu_offload \
-           and not self.use_enable_sequential_cpu_offload \
-           and hasattr(self.pipe, "enable_model_cpu_offload"):
-            logger.debug("Enabling model cpu offload")
-            self.pipe = self.move_pipe_to_cpu(self.pipe)
-            self.pipe.enable_model_cpu_offload()
-
-    def apply_memory_efficient_settings(self):
-        logger.info("Applying memory efficient settings")
-        self.apply_last_channels()
-        self.apply_vae_slicing()
-        self.apply_cpu_offload()
-        self.apply_model_offload()
-        self.pipe = self.move_pipe_to_cuda(self.pipe)
-        self.apply_attention_slicing()
-        self.apply_tiled_vae()
-        self.apply_xformers()
-        self.apply_accelerated_transformers()
-        self.apply_torch_compile()
 
     def _initialize(self):
         if not self.initialized or self.reload_model:
@@ -1327,182 +1054,6 @@ class SDRunner(BaseRunner):
                 **kwargs
             )
     
-    def apply_lora(self):
-        model_base_path = self.settings_manager.settings.model_base_path.get()
-        lora_path = self.settings_manager.settings.lora_path.get() or "lora"
-        path = os.path.join(model_base_path, lora_path) if lora_path == "lora" else lora_path
-        for lora in self.options[f"{self.action}_lora"]:
-            filepath = None
-            for root, dirs, files in os.walk(path):
-                for file in files:
-                    if file.startswith(lora["name"]):
-                        filepath = os.path.join(root, file)
-                        break
-            try:
-                self.load_lora(filepath, multiplier=lora["scale"] / 100.0)
-                self.loaded_lora.append({"name": lora["name"], "scale": lora["scale"]})
-            except RuntimeError as e:
-                print(e)
-                print("Failed to load lora")
-
-    # https://github.com/huggingface/diffusers/issues/3064
-    def load_lora(self, checkpoint_path, multiplier=1.0, device="cuda", dtype=torch.float16):
-        LORA_PREFIX_UNET = "lora_unet"
-        LORA_PREFIX_TEXT_ENCODER = "lora_te"
-        # load LoRA weight from .safetensors
-        state_dict = load_file(checkpoint_path, device=device)
-
-        updates = defaultdict(dict)
-        for key, value in state_dict.items():
-            # it is suggested to print out the key, it usually will be something like below
-            # "lora_te_text_model_encoder_layers_0_self_attn_k_proj.lora_down.weight"
-
-            layer, elem = key.split('.', 1)
-            updates[layer][elem] = value
-
-        # directly update weight in diffusers model
-        for layer, elems in updates.items():
-
-            if "text" in layer:
-                layer_infos = layer.split(LORA_PREFIX_TEXT_ENCODER + "_")[-1].split("_")
-                curr_layer = self.pipe.text_encoder
-            else:
-                layer_infos = layer.split(LORA_PREFIX_UNET + "_")[-1].split("_")
-                curr_layer = self.pipe.unet
-
-            # find the target layer
-            temp_name = layer_infos.pop(0)
-            while len(layer_infos) > -1:
-                try:
-                    curr_layer = curr_layer.__getattr__(temp_name)
-                    if len(layer_infos) > 0:
-                        temp_name = layer_infos.pop(0)
-                    elif len(layer_infos) == 0:
-                        break
-                except Exception:
-                    if len(temp_name) > 0:
-                        temp_name += "_" + layer_infos.pop(0)
-                    else:
-                        temp_name = layer_infos.pop(0)
-
-            # get elements for this layer
-            weight_up = elems['lora_up.weight'].to(dtype)
-            weight_down = elems['lora_down.weight'].to(dtype)
-            try:
-                alpha = elems['alpha']
-                if alpha:
-                    alpha = alpha.item() / weight_up.shape[1]
-                else:
-                    alpha = 1.0
-            except KeyError:
-                alpha = 1.0
-
-            # update weight
-            if len(weight_up.shape) == 4:
-                curr_layer.weight.data += multiplier * alpha * torch.mm(
-                    weight_up.squeeze(3).squeeze(2),
-                    weight_down.squeeze(3).squeeze(2)
-                ).unsqueeze(2).unsqueeze(3)
-            else:
-                # print the shapes of weight_up and weight_down:
-                # print(weight_up.shape, weight_down.shape)
-                curr_layer.weight.data += multiplier * alpha * torch.mm(weight_up, weight_down)
-    
-    def _preprocess_canny(self, image):
-        image = np.array(image)
-        low_threshold = 100
-        high_threshold = 200
-        image = cv2.Canny(image, low_threshold, high_threshold)
-        image = image[:, :, None]
-        image = np.concatenate([image, image, image], axis=2)
-        image = Image.fromarray(image)
-        return image
-
-    def _preprocess_depth(self, image):
-        from transformers import pipeline
-        depth_estimator = pipeline('depth-estimation')
-        image = depth_estimator(image)['depth']
-        image = np.array(image)
-        image = image[:, :, None]
-        image = np.concatenate([image, image, image], axis=2)
-        image = Image.fromarray(image)
-        return image
-
-    def _preprocess_hed(self, image):
-        hed = HEDdetector.from_pretrained('lllyasviel/ControlNet')
-        image = hed(image)
-        return image
-
-    def _preprocess_mlsd(self, image):
-        mlsd = MLSDdetector.from_pretrained('lllyasviel/ControlNet')
-        image = mlsd(image)
-        return image
-
-    def _preprocess_normal(self, image):
-        from transformers import pipeline
-        depth_estimator = pipeline("depth-estimation", model="Intel/dpt-hybrid-midas")
-        image = depth_estimator(image)['predicted_depth'][0]
-        image = image.numpy()
-        image_depth = image.copy()
-        image_depth -= np.min(image_depth)
-        image_depth /= np.max(image_depth)
-        bg_threhold = 0.4
-        x = cv2.Sobel(image, cv2.CV_32F, 1, 0, ksize=3)
-        x[image_depth < bg_threhold] = 0
-        y = cv2.Sobel(image, cv2.CV_32F, 0, 1, ksize=3)
-        y[image_depth < bg_threhold] = 0
-        z = np.ones_like(x) * np.pi * 2.0
-        image = np.stack([x, y, z], axis=2)
-        image /= np.sum(image ** 2.0, axis=2, keepdims=True) ** 0.5
-        image = (image * 127.5 + 127.5).clip(0, 255).astype(np.uint8)
-        image = Image.fromarray(image)
-        return image
-
-    def _preprocess_segmentation(self, image):
-        from transformers import AutoImageProcessor, UperNetForSemanticSegmentation
-        image_processor = AutoImageProcessor.from_pretrained("openmmlab/upernet-convnext-small")
-        image_segmentor = UperNetForSemanticSegmentation.from_pretrained("openmmlab/upernet-convnext-small")
-        pixel_values = image_processor(image, return_tensors="pt").pixel_values
-        with torch.no_grad():
-            outputs = image_segmentor(pixel_values)
-        seg = image_processor.post_process_semantic_segmentation(outputs, target_sizes=[image.size[::-1]])[0]
-        color_seg = np.zeros((seg.shape[0], seg.shape[1], 3), dtype=np.uint8)  # height, width, 3
-        palette = np.array(ade_palette())
-        for label, color in enumerate(palette):
-            color_seg[seg == label, :] = color
-        color_seg = color_seg.astype(np.uint8)
-        image = Image.fromarray(color_seg)
-        return image
-
-    def _preprocess_openpose(self, image):
-        openpose = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
-        image = openpose(image)
-        return image
-
-    def _preprocess_scribble(self, image):
-        hed = HEDdetector.from_pretrained('lllyasviel/ControlNet')
-        image = hed(image, scribble=True)
-        return image
-
-    def _preprocess_for_controlnet(self, image, process_type="canny"):
-        if process_type == "canny":
-            image = self._preprocess_canny(image)
-        elif process_type == "depth":
-            image = self._preprocess_depth(image)
-        elif process_type == "hed":
-            image = self._preprocess_hed(image)
-        elif process_type == "mlsd":
-            image = self._preprocess_mlsd(image)
-        elif process_type == "normal":
-            image = self._preprocess_normal(image)
-        elif process_type == "scribble":
-            image = self._preprocess_scribble(image)
-        elif process_type == "segmentation":
-            image = self._preprocess_segmentation(image)
-        elif process_type == "openpose":
-            image = self._preprocess_openpose(image)
-        return image
-
     def _sample_diffusers_model(self, data: dict):
         image = None
         nsfw_content_detected = None
@@ -1795,165 +1346,3 @@ class SDRunner(BaseRunner):
 
     def cancel(self):
         self.do_cancel = True
-
-    def merge_models(self, base_model_path, models_to_merge_path, weights, output_path, name, action):
-        from diffusers import (
-            DiffusionPipeline,
-            StableDiffusionPipeline,
-            StableDiffusionImg2ImgPipeline,
-            StableDiffusionInstructPix2PixPipeline,
-            StableDiffusionInpaintPipeline,
-            StableDiffusionDepth2ImgPipeline,
-            StableDiffusionUpscalePipeline,
-            StableDiffusionControlNetPipeline
-        )
-        self.action = action
-        # data = {
-        #     "action": action,
-        #     "options": {
-        #         f"{action}_model": base_model_path,
-        #         f"{action}_scheduler": "Euler a",
-        #         f"{action}_model_branch": "fp16",
-        #         f"model_base_path": self.model_path,
-        #     }
-        # }
-        # self._prepare_options(data)
-        # self._prepare_scheduler()
-        # self._prepare_model()
-        # print(data)
-        # self._initialize()
-        PipeCLS = StableDiffusionPipeline
-        if action == "outpaint":
-            PipeCLS = StableDiffusionInpaintPipeline
-        elif action == "depth2img":
-            PipeCLS = StableDiffusionDepth2ImgPipeline
-        elif action == "pix2pix":
-            PipeCLS = StableDiffusionInstructPix2PixPipeline
-
-        print("LOADING PIPE FROM PRETRAINED", base_model_path)
-        if base_model_path.endswith('.ckpt') or base_model_path.endswith('.safetensors'):
-            pipe = self._load_ckpt_model(
-                path=base_model_path,
-                is_safetensors=base_model_path.endswith('.safetensors'),
-                scheduler_name="Euler a"
-            )
-        else:
-            pipe = PipeCLS.from_pretrained(
-                base_model_path,
-                local_files_only=self.local_files_only
-            )
-        for index in range(len(models_to_merge_path)):
-            weight = weights[index]
-            model_path = models_to_merge_path[index]
-            print("LOADING MODEL TO MERGE FROM PRETRAINED", model_path)
-            if model_path.endswith('.ckpt') or model_path.endswith('.safetensors'):
-                model = self._load_ckpt_model(
-                    path=model_path,
-                    is_safetensors=model_path.endswith('.safetensors'),
-                    scheduler_name="Euler a"
-                )
-            else:
-                model = type(pipe).from_pretrained(
-                    model_path,
-                    local_files_only=self.local_files_only
-                )
-
-            pipe.vae = self.merge_vae(pipe.vae, model.vae, weight["vae"])
-            pipe.unet = self.merge_unet(pipe.unet, model.unet, weight["unet"])
-            pipe.text_encoder = self.merge_text_encoder(pipe.text_encoder, model.text_encoder, weight["text_encoder"])
-        output_path = os.path.join(output_path, name)
-        print(f"Saving to {output_path}")
-        pipe.save_pretrained(output_path)
-        print("merge complete")
-    
-    def merge_vae(self, vae_a, vae_b, weight_b=0.6):
-        """
-        Merge two VAE models by averaging their weights.
-
-        Args:
-            vae_a (nn.Module): First VAE model.
-            vae_b (nn.Module): Second VAE model.
-            weight_b (float): Weight to give to the second model. Default is 0.6.
-
-        Returns:
-            nn.Module: Merged VAE model.
-        """
-        # Get the state dictionaries of the two VAE models
-        state_dict_a = vae_a.state_dict()
-        state_dict_b = vae_b.state_dict()
-
-        # Only merge parameters that have the same shape in both models
-        merged_state_dict = {}
-        for key in state_dict_a.keys():
-            if key in state_dict_b and state_dict_a[key].shape == state_dict_b[key].shape:
-                merged_state_dict[key] = (1 - weight_b) * state_dict_a[key] + weight_b * state_dict_b[key]
-            else:
-                print("shape does not match")
-                merged_state_dict[key] = state_dict_a[key]
-
-        # Load the merged state dictionary into a new VAE model
-        merged_vae = type(vae_a)()
-        vae_a.load_state_dict(merged_state_dict)
-
-        return vae_a
-
-    def merge_unet(self, unet_a, unet_b, weight_b=0.6):
-        """
-        Merge two U-Net models by averaging their weights.
-
-        Args:
-            unet_a (nn.Module): First U-Net model.
-            unet_b (nn.Module): Second U-Net model.
-            weight_b (float): Weight to give to the second model. Default is 0.6.
-
-        Returns:
-            nn.Module: Merged U-Net model.
-        """
-        # Get the state dictionaries of the two U-Net models
-        state_dict_a = unet_a.state_dict()
-        state_dict_b = unet_b.state_dict()
-
-        # Average the weights of the two models, giving more weight to unet_b
-        merged_state_dict = {}
-        for key in state_dict_a.keys():
-            if key in state_dict_b and state_dict_a[key].shape == state_dict_b[key].shape:
-                merged_state_dict[key] = (1 - weight_b) * state_dict_a[key] + weight_b * state_dict_b[key]
-            else:
-                print("shape does not match")
-                merged_state_dict[key] = state_dict_a[key]
-
-        # Load the averaged weights into a new U-Net model
-        merged_unet = type(unet_a)()
-        unet_a.load_state_dict(merged_state_dict)
-
-        return unet_a
-
-    def merge_text_encoder(self, text_encoder_a, text_encoder_b, weight_b=0.6):
-        """
-        Merge two Text Encoder models by averaging their weights.
-
-        Args:
-            text_encoder_a (nn.Module): First Text Encoder model.
-            text_encoder_b (nn.Module): Second Text Encoder model.
-            weight_b (float): Weight to give to the second model. Default is 0.6.
-
-        Returns:
-            nn.Module: Merged Text Encoder model.
-        """
-        # Get the state dictionaries of the two Text Encoder models
-        state_dict_a = text_encoder_a.state_dict()
-        state_dict_b = text_encoder_b.state_dict()
-
-        # Average the weights of the two models, giving more weight to text_encoder_b
-        merged_state_dict = {}
-        for key in state_dict_a.keys():
-            if key in state_dict_b and state_dict_a[key].shape == state_dict_b[key].shape:
-                merged_state_dict[key] = (1 - weight_b) * state_dict_a[key] + weight_b * state_dict_b[key]
-            else:
-                print("shape does not match")
-                merged_state_dict[key] = state_dict_a[key]
-
-        # Load the averaged weights into a new Text Encoder model
-        text_encoder_a.load_state_dict(merged_state_dict)
-
-        return text_encoder_a
