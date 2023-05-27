@@ -1,5 +1,5 @@
 class ExtensionsMixin:
-    active_extensions = []  TODO: extensions
+    active_extensions = []  # TODO: extensions
 
     def call_pipe_extension(self, **kwargs):
         """

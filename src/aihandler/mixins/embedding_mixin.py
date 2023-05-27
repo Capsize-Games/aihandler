@@ -3,7 +3,7 @@ import torch
 from aihandler.logger import logger
 
 
-class EmbeddingsMixin:
+class EmbeddingMixin:
     def load_learned_embed_in_clip(self):
         learned_embeds_path = os.path.join(self.model_base_path, "embeddings")
         if self.embeds_loaded:

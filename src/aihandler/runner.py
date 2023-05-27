@@ -6,22 +6,21 @@ from aihandler.base_runner import BaseRunner
 from aihandler.qtvar import ImageVar
 import traceback
 import torch
-import io
 from aihandler.settings import LOG_LEVEL
 from aihandler.logger import logger
 import logging
 logging.disable(LOG_LEVEL)
 logger.set_level(logger.DEBUG)
 from PIL import Image
-from compel import Compel
 from aihandler.settings import AVAILABLE_SCHEDULERS_BY_ACTION
 from aihandler.mixins.merge_mixin import MergeMixin
 from aihandler.mixins.lora_mixin import LoraMixin
 from aihandler.mixins.controlnet_mixin import ControlnetMixin
 from aihandler.mixins.memory_efficient_mixin import MemoryEfficientMixin
-from aihandler.mixins.embeddings_mixin import EmbeddingsMixin
+from aihandler.mixins.embedding_mixin import EmbeddingMixin
 from aihandler.mixins.txttovideo_mixin import TexttovideoMixin
-
+from aihandler.mixins.compel_mixin import CompelMixin
+from aihandler.mixins.scheduler_mixin import SchedulerMixin
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
@@ -33,59 +32,18 @@ class SDRunner(
     LoraMixin,
     ControlnetMixin,
     MemoryEfficientMixin,
-    EmbeddingsMixin,
-    TexttovideoMixin
+    EmbeddingMixin,
+    TexttovideoMixin,
+    CompelMixin,
+    SchedulerMixin
 ):
     _current_model: str = ""
     _previous_model: str = ""
-    scheduler_name: str = "Euler a"
-    do_nsfw_filter: bool = False
     initialized: bool = False
-    seed: int = 42
-    model_base_path: str = ""
-    prompt: str = ""
-    negative_prompt: str = ""
-    guidance_scale: float = 7.5
-    image_guidance_scale: float = 1.5
-    num_inference_steps: int = 20
-    height: int = 512
-    width: int = 512
-    steps: int = 20
-    ddim_eta: float = 0.5
-    batch_size: int = 1
-    n_samples: int = 1
-    pos_x: int = 0
-    pos_y: int = 0
-    outpaint_box_rect = None
-    hf_token: str = ""
-    reload_model: bool = False
+    _current_sample = 0
+    _reload_model: bool = False
     action: str = ""
-    options: dict = {}
-    model = None
     do_cancel = False
-    schedulers: dict = {
-        "DDIM": "DDIMScheduler",
-        "DDIM Inverse": "DDIMInverseScheduler",
-        "DDPM": "DDPMScheduler",
-        "DEIS": "DEISMultistepScheduler",
-        "DPM Discrete": "KDPM2DiscreteScheduler",
-        "DPM Discrete a": "KDPM2AncestralDiscreteScheduler",
-        "Euler a": "EulerAncestralDiscreteScheduler",
-        "Euler": "EulerDiscreteScheduler",
-        "Heun": "HeunDiscreteScheduler",
-        "IPNM": "IPNDMScheduler",
-        "LMS": "LMSDiscreteScheduler",
-        "Multistep DPM": "DPMSolverMultistepScheduler",
-        "PNDM": "PNDMScheduler",
-        "DPM singlestep": "DPMSolverSinglestepScheduler",
-        "RePaint": "RePaintScheduler",
-        "Karras Variance exploding": "KarrasVeScheduler",
-        "UniPC": "UniPCMultistepScheduler",
-        "VE-SDE": "ScoreSdeVeScheduler",
-        "VP-SDE": "ScoreSdeVpScheduler",
-        "VQ Diffusion": " VQDiffusionScheduler",
-    }
-    registered_schedulers: dict = {}
     safety_checker = None
     current_model_branch = None
     txt2img = None
@@ -102,59 +60,152 @@ class SDRunner(
     loaded_lora = []
     _settings = None
     _action = None
-    do_change_scheduler = False
     embeds_loaded = False
-    options = {}
     _compel_proc = None
     _prompt_embeds = None
     _negative_prompt_embeds = None
-    _scheduler = None
+    _data = {
+        "options": {}
+    }
+    _model = None
+    _controlnet_type = None
+    reload_model = False
 
     @property
-    def compel_proc(self):
-        if not self._compel_proc:
-            self._compel_proc = Compel(
-                tokenizer=self.pipe.tokenizer,
-                text_encoder=self.pipe.text_encoder,
-                truncate_long_prompts=False
-            )
-        return self._compel_proc
+    def current_sample(self):
+        return self._current_sample
 
-    @compel_proc.setter
-    def compel_proc(self, value):
-        self._compel_proc = value
+    @current_sample.setter
+    def current_sample(self, value):
+        self._current_sample = value
 
     @property
-    def prompt_embeds(self):
-        if self._prompt_embeds is None:
-            self.load_prompt_embeds()
-        return self._prompt_embeds
+    def data(self):
+        return self._data
 
-    @prompt_embeds.setter
-    def prompt_embeds(self, value):
-        self._prompt_embeds = value
+    @data.setter
+    def data(self, value):
+        self._data = value
 
     @property
-    def negative_prompt_embeds(self):
-        if self._negative_prompt_embeds is None:
-            self.load_prompt_embeds()
-        return self._negative_prompt_embeds
+    def options(self):
+        return self.data.get("options", {})
 
-    @negative_prompt_embeds.setter
-    def negative_prompt_embeds(self, value):
-        self._negative_prompt_embeds = value
+    @property
+    def seed(self):
+        return self.options.get(f"{self.action}_seed", 42) + self.current_sample
 
-    def load_prompt_embeds(self):
-        logger.info("Loading prompt embeds")
-        self.compel_proc = None
-        self.clear_memory()
-        prompt = self.prompt
-        negative_prompt = self.negative_prompt if self.negative_prompt else ""
-        prompt_embeds = self.compel_proc.build_conditioning_tensor(prompt)
-        negative_prompt_embeds = self.compel_proc.build_conditioning_tensor(negative_prompt)
-        [prompt_embeds, negative_prompt_embeds] = self.compel_proc.pad_conditioning_tensors_to_same_length([prompt_embeds, negative_prompt_embeds])
-        self.prompt_embeds = prompt_embeds
-        self.negative_prompt_embeds = negative_prompt_embeds
+    @property
+    def prompt(self):
+        return self.options.get(f"{self.action}_prompt")
+
+    @property
+    def negative_prompt(self):
+        return self.options.get(f"{self.action}_negative_prompt")
+
+    @property
+    def guidance_scale(self):
+        return self.options.get(f"{self.action}_scale", 7.5)
+
+    @property
+    def image_guidance_scale(self):
+        return self.options.get(f"{self.action}_image_scale", 1.5)
+
+    @property
+    def height(self):
+        return self.options.get(f"{self.action}_height", 512)
+
+    @property
+    def width(self):
+        return self.options.get(f"{self.action}_width", 512)
+
+    @property
+    def steps(self):
+        return self.options.get(f"{self.action}_steps", 20)
+
+    @property
+    def ddim_eta(self):
+        return self.options.get(f"{self.action}_ddim_eta", 0.5)
+
+    @property
+    def batch_size(self):
+        return self.options.get(f"{self.action}_n_samples", 1)
+
+    @property
+    def pos_x(self):
+        return self.options.get(f"{self.action}_pos_x", 0)
+
+    @property
+    def pos_y(self):
+        return self.options.get(f"{self.action}_pos_y", 0)
+
+    @property
+    def outpaint_box_rect(self):
+        return self.options.get(f"{self.action}_box_rect", "")
+
+    @property
+    def hf_token(self):
+        return self.data.get("hf_token", "")
+
+    @property
+    def strength(self):
+        return self.options.get(f"{self.action}_strength", 1)
+
+    @property
+    def enable_model_cpu_offload(self):
+        return self.options.get("enable_model_cpu_offload", False) == True
+
+    @property
+    def use_attention_slicing(self):
+        return self.options.get("use_attention_slicing", False) == True
+
+    @property
+    def use_tf32(self):
+        return self.options.get("use_tf32", False) == True
+
+    @property
+    def use_last_channels(self):
+        return self.options.get("use_last_channels", True) == True
+
+    @property
+    def use_enable_sequential_cpu_offload(self):
+        return self.options.get("use_enable_sequential_cpu_offload", True) == True
+
+    @property
+    def use_enable_vae_slicing(self):
+        return self.options.get("use_enable_vae_slicing", False) == True
+
+    @property
+    def do_nsfw_filter(self):
+        return self.options.get("do_nsfw_filter", True) == True
+
+    @property
+    def use_xformers(self):
+        return self.options.get("use_xformers", False) == True
+
+    @property
+    def use_tiled_vae(self):
+        return self.options.get("use_tiled_vae", False) == True
+
+    @property
+    def use_accelerated_transformers(self):
+        return self.options.get("use_accelerated_transformers", False) == True
+
+    @property
+    def use_torch_compiler(self):
+        return self.options.get("use_torch_compiler", False) == True
+
+    @property
+    def controlnet_type(self):
+        return self.options.get("controlnet", "canny")
+
+    @property
+    def model_base_path(self):
+        return self.options.get("model_base_path", None)
+
+    @property
+    def model(self):
+        return self.options.get(f"{self.action}_model", None)
 
     @property
     def do_mega_scale(self):
@@ -163,11 +214,7 @@ class SDRunner(
 
     @property
     def action(self):
-        return self._action
-
-    @action.setter
-    def action(self, value):
-        self._action = value
+        return self.data.get("action", None)
 
     @property
     def action_has_safety_checker(self):
@@ -237,10 +284,6 @@ class SDRunner(
         if not os.path.exists(path):
             return self.current_model
         return path
-
-    @property
-    def scheduler(self):
-        return self.load_scheduler()
 
     @property
     def cuda_error_message(self):
@@ -388,44 +431,6 @@ class SDRunner(
         torch.cuda.empty_cache()
         gc.collect()
 
-    def load_scheduler(self, force_scheduler_name=None):
-        import diffusers
-        if not force_scheduler_name and self._scheduler and not self.do_change_scheduler:
-            return self._scheduler
-
-        if not self.model_path or self.model_path == "":
-            traceback.print_stack()
-            raise Exception("Chicken / egg problem, model path not set")
-
-        if self.is_ckpt_model or self.is_safetensors:  # skip scheduler for ckpt models
-            return None
-
-        scheduler_name = force_scheduler_name if force_scheduler_name else self.scheduler_name
-        if not force_scheduler_name and scheduler_name not in AVAILABLE_SCHEDULERS_BY_ACTION[self.action]:
-            scheduler_name = AVAILABLE_SCHEDULERS_BY_ACTION[self.action][0]
-        scheduler_class_name = self.schedulers[scheduler_name]
-        scheduler_class = getattr(diffusers, scheduler_class_name)
-        kwargs = {
-            "subfolder": "scheduler"
-        }
-        # check if self.scheduler_name contains ++
-        if scheduler_name.startswith("DPM"):
-            kwargs["lower_order_final"] = self.num_inference_steps < 15
-            if scheduler_name.find("++") != -1:
-                kwargs["algorithm_type"] = "dpmsolver++"
-            else:
-                kwargs["algorithm_type"] = "dpmsolver"
-        if self.current_model_branch:
-            kwargs["variant"] = self.current_model_branch
-        logger.info(f"Loading scheduler {self.scheduler_name} with kwargs {kwargs}")
-        self._scheduler = scheduler_class.from_pretrained(
-            self.model_path,
-            local_files_only=self.local_files_only,
-            use_auth_token=self.data["options"]["hf_token"],
-            **kwargs
-        )
-        return self._scheduler
-
     def unload_unused_models(self, skip_model=None):
         """
         Unload all models except the one specified in skip_model
@@ -502,23 +507,6 @@ class SDRunner(
         from diffusers.pipelines.stable_diffusion.convert_from_ckpt import \
             download_from_original_stable_diffusion_ckpt
         from diffusers import StableDiffusionImg2ImgPipeline
-        print("is safetensors", is_safetensors)
-        schedulers = {
-            "Euler": "euler",
-            "Euler a": "euler-ancestral",
-            "LMS": "lms",
-            "PNDM": "pndm",
-            "Heun": "heun",
-            "DDIM": "ddim",
-            "DDPM": "DDPMScheduler",
-            "DPM multistep": "dpm",
-            "DPM singlestep": "dpmss",
-            "DPM++ multistep": "dpm++",
-            "DPM++ singlestep": "dpmss++",
-            "DPM2 k": "dpm2k",
-            "DPM2 a k": "dpm2ak",
-            "DEIS": "deis",
-        }
         if not scheduler_name:
             scheduler_name = self.scheduler_name
         if not path:
@@ -530,17 +518,17 @@ class SDRunner(
             if not os.path.exists(config):
                 HERE = os.path.dirname(os.path.abspath(__file__))
                 config = os.path.join(HERE, config)
-            print("path", path)
-            return download_from_original_stable_diffusion_ckpt(
+            pipe = download_from_original_stable_diffusion_ckpt(
                 checkpoint_path=path,
                 original_config_file=config,
-                scheduler_type=schedulers[scheduler_name],
                 device=device,
                 from_safetensors=is_safetensors,
                 load_safety_checker=do_nsfw_filter,
                 local_files_only=self.local_files_only,
                 pipeline_class=StableDiffusionImg2ImgPipeline if self.is_controlnet else self.action_diffuser
             )
+            pipe.scheduler = self.scheduler
+            return pipe
         # find exception: RuntimeError: Error(s) in loading state_dict for UNet2DConditionModel
         except RuntimeError as e:
             if e.args[0].startswith("Error(s) in loading state_dict for UNet2DConditionModel") and config  == "v1.yaml":
@@ -661,113 +649,39 @@ class SDRunner(
             self.current_model = self.options.get(f"{self.action}_model_path", None)
             self.current_model_branch = self.options.get(f"{self.action}_model_branch", None)
 
-    def _change_scheduler(self):
-        if not self.do_change_scheduler:
-            return
-        if self.model_path and self.model_path != "":
-            self.pipe.scheduler = self.scheduler
-            self.do_change_scheduler = False
-        else:
-            logger.warning("Unable to change scheduler, model_path is not set")
-
-    def _prepare_scheduler(self):
-        scheduler_name = self.options.get(f"{self.action}_scheduler", "euler_a")
-        if self.scheduler_name != scheduler_name:
-            self.set_message(f"Preparing scheduler...")
-            self.set_message("Loading scheduler")
-            logger.info("Prepare scheduler")
-            self.set_message("Preparing scheduler...")
-            self.scheduler_name = scheduler_name
-            if self.is_ckpt_model or self.is_safetensors:
-                self.reload_model = True
-            else:
-                self.do_change_scheduler = True
-        else:
-            self.do_change_scheduler = False
-
     def _prepare_options(self, data):
         self.set_message(f"Preparing options...")
-        try:
-            action = data.get("action", "txt2img")
-        except AttributeError:
-            logger.error("No action provided")
-            logger.error(data)
+        print(data)
+        action = data["action"]
         options = data["options"]
-        self.reload_model = False
-        self.controlnet_type = self.options.get("controlnet", "canny")
-        self.model_base_path = options["model_base_path"]
-        model = options.get(f"{action}_model")
-        if model != self.model:
-            self.model = model
-            self.reload_model = True
-        controlnet_type = options.get(f"controlnet")
-        if controlnet_type != self.controlnet_type:
-            self.controlnet_type = controlnet_type
-            self.reload_model = True
-        if self.prompt != options.get(f"{action}_prompt") or self.negative_prompt != options.get(f"{action}_negative_prompt"):
+        model = options.get(f"{action}_model", None)
+        controlnet_type = options.get(f"{action}_controlnet", None)
+
+        # do model reload checks here
+        if (
+            self.is_pipe_loaded and (  # memory options change
+                self.use_enable_sequential_cpu_offload != options.get("use_enable_sequential_cpu_offload", True) or
+                self.use_xformers != options.get("use_xformers", True)
+            )
+        ) or (  # model change
+            self.model is not None
+            and self.model != model
+            and model is not None
+        ) or (  # controlnet change
+            self.controlnet_type is not None
+            and self.controlnet_type != controlnet_type
+            and controlnet_type is not None
+        ):
+           self.reload_model = True
+
+        if self.prompt != options.get(f"{action}_prompt") or \
+           self.negative_prompt != options.get(f"{action}_negative_prompt") or \
+           action != self.action or \
+           self.reload_model:
             self._prompt_embeds = None
             self._negative_prompt_embeds = None
-        self.prompt = options.get(f"{action}_prompt", self.prompt)
-        self.negative_prompt = options.get(f"{action}_negative_prompt", self.negative_prompt)
-        self.seed = int(options.get(f"{action}_seed", self.seed))
-        self.guidance_scale = float(options.get(f"{action}_scale", self.guidance_scale))
-        self.image_guidance_scale = float(options.get(f"{action}_image_scale", self.image_guidance_scale))
-        self.strength = float(options.get(f"{action}_strength") or 1)
-        self.num_inference_steps = int(options.get(f"{action}_steps", self.num_inference_steps))
-        self.height = int(options.get(f"{action}_height", self.height))
-        self.width = int(options.get(f"{action}_width", self.width))
-        self.steps = int(options.get(f"{action}_steps", self.steps))
-        self.ddim_eta = float(options.get(f"{action}_ddim_eta", self.ddim_eta))
-        self.batch_size = int(options.get(f"{action}_n_samples", self.batch_size))
-        self.n_samples = int(options.get(f"{action}_n_samples", self.n_samples))
-        self.pos_x = int(options.get(f"{action}_pos_x", self.pos_x))
-        self.pos_y = int(options.get(f"{action}_pos_y", self.pos_y))
-        self.outpaint_box_rect = options.get(f"{action}_outpaint_box_rect", self.outpaint_box_rect)
-        self.hf_token = ""
-        self.enable_model_cpu_offload = options.get(f"enable_model_cpu_offload", self.enable_model_cpu_offload)
-        self.use_attention_slicing = self.use_attention_slicing
-        self.use_tf32 = self.use_tf32
-        self.use_enable_vae_slicing = self.use_enable_vae_slicing
-        self.use_xformers = self.use_xformers
 
-        do_nsfw_filter = bool(options.get(f"do_nsfw_filter", self.do_nsfw_filter))
-        self.do_nsfw_filter = do_nsfw_filter
-        self.action = action
-        self.options = options
-
-        # memory settings
-        self.use_last_channels = options.get("use_last_channels", True) == True
-        cpu_offload = options.get("use_enable_sequential_cpu_offload", True) == True
-        if self.is_pipe_loaded and cpu_offload != self.use_enable_sequential_cpu_offload:
-            logger.debug("Reloading model based on cpu offload")
-            self.reload_model = True
-        self.use_enable_sequential_cpu_offload = cpu_offload
-        self.use_attention_slicing = options.get("use_attention_slicing", True) == True
-        self.use_tf32 = options.get("use_tf32", True) == True
-        self.use_enable_vae_slicing = options.get("use_enable_vae_slicing", True) == True
-        use_xformers = options.get("use_xformers", True) == True
-        self.use_tiled_vae = options.get("use_tiled_vae", True) == True
-        if self.is_pipe_loaded  and use_xformers != self.use_xformers:
-            logger.debug("Reloading model based on xformers")
-            self.reload_model = True
-        self.use_xformers = use_xformers
-        self.use_accelerated_transformers = options.get("use_accelerated_transformers", True) == True
-        self.use_torch_compile = options.get("use_torch_compile", True) == True
-        # print logger.info of all memory settings in use
-        logger.debug("Memory settings:")
-        logger.debug(f"  use_last_channels: {self.use_last_channels}")
-        logger.debug(f"  use_enable_sequential_cpu_offload: {self.use_enable_sequential_cpu_offload}")
-        logger.debug(f"  enable_model_cpu_offload: {self.enable_model_cpu_offload}")
-        logger.debug(f"  use_tiled_vae: {self.use_tiled_vae}")
-        logger.debug(f"  use_attention_slicing: {self.use_attention_slicing}")
-        logger.debug(f"  use_tf32: {self.use_tf32}")
-        logger.debug(f"  use_enable_vae_slicing: {self.use_enable_vae_slicing}")
-        logger.debug(f"  use_xformers: {self.use_xformers}")
-        logger.debug(f"  use_accelerated_transformers: {self.use_accelerated_transformers}")
-        logger.debug(f"  use_torch_compile: {self.use_torch_compile}")
-
-        self.options = options
-
+        self.data = data
         torch.backends.cuda.matmul.allow_tf32 = self.use_tf32
 
     def load_safety_checker(self, action):
@@ -779,9 +693,6 @@ class SDRunner(
     def do_sample(self, **kwargs):
         logger.info(f"Sampling {self.action}")
         self.set_message(f"Generating image...")
-        # move everything but this action to the cpu
-        # self.unload_unused_models(self.action)
-        #if not self.is_ckpt_model and not self.is_safetensors:
         logger.info(f"Load safety checker")
         self.load_safety_checker(self.action)
 
@@ -834,7 +745,7 @@ class SDRunner(
                 prompt_embeds=self.prompt_embeds,
                 negative_prompt_embeds=self.negative_prompt_embeds,
                 guidance_scale=self.guidance_scale,
-                num_inference_steps=self.num_inference_steps,
+                num_inference_steps=self.steps,
                 num_frames=self.batch_size,
                 callback=self.callback,
                 seed=self.seed,
@@ -844,7 +755,7 @@ class SDRunner(
                 prompt=self.prompt,
                 negative_prompt=self.negative_prompt,
                 image=kwargs.get("image"),
-                num_inference_steps=self.num_inference_steps,
+                num_inference_steps=self.steps,
                 guidance_scale=self.guidance_scale,
                 callback=self.callback,
                 generator=torch.manual_seed(self.seed)
@@ -854,7 +765,7 @@ class SDRunner(
                 prompt_embeds=self.prompt_embeds,
                 negative_prompt_embeds=self.negative_prompt_embeds,
                 guidance_scale=self.guidance_scale,
-                num_inference_steps=self.num_inference_steps,
+                num_inference_steps=self.steps,
                 num_images_per_prompt=1,
                 callback=self.callback,
                 # cross_attention_kwargs={"scale": 0.5},
@@ -900,7 +811,7 @@ class SDRunner(
                 prompt_embeds=self.prompt_embeds,
                 negative_prompt_embeds=self.negative_prompt_embeds,
                 guidance_scale=self.guidance_scale,
-                num_inference_steps=self.num_inference_steps,
+                num_inference_steps=self.steps,
                 num_images_per_prompt=1,
                 callback=self.callback,
                 # cross_attention_kwargs={"scale": 0.5},
@@ -1053,15 +964,16 @@ class SDRunner(
         else:
             total_to_generate = self.batch_size
         for n in range(total_to_generate):
+            self.current_sample = n
             image, nsfw_content_detected = self._sample_diffusers_model(data)
             if use_callback:
                 self.image_handler(image, data, nsfw_content_detected)
             else:
                 return image, nsfw_content_detected
-            self.seed = self.seed + 1
             if self.do_cancel:
                 self.do_cancel = False
                 break
+        self.current_sample = 0
 
     def image_handler(self, image, data, nsfw_content_detected):
         if image:
@@ -1076,7 +988,7 @@ class SDRunner(
             # self.save_pipeline()
 
     def final_callback(self):
-        total = int(self.num_inference_steps * self.strength)
+        total = int(self.steps * self.strength)
         self.tqdm_callback(total, total, self.action)
 
     def callback(self, step: int, _time_step, _latents):
@@ -1089,7 +1001,7 @@ class SDRunner(
             data["video_filename"] = self.txt2vid_file
         self.tqdm_callback(
             step,
-            int(self.num_inference_steps * self.strength),
+            int(self.steps * self.strength),
             self.action,
             image=image,
             data=data,
