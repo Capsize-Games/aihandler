@@ -20,6 +20,7 @@ from aihandler.mixins.lora_mixin import LoraMixin
 from aihandler.mixins.controlnet_mixin import ControlnetMixin
 from aihandler.mixins.memory_efficient_mixin import MemoryEfficientMixin
 from aihandler.mixins.embeddings_mixin import EmbeddingsMixin
+from aihandler.mixins.txttovideo_mixin import TexttovideoMixin
 
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
@@ -32,7 +33,8 @@ class SDRunner(
     LoraMixin,
     ControlnetMixin,
     MemoryEfficientMixin,
-    EmbeddingsMixin
+    EmbeddingsMixin,
+    TexttovideoMixin
 ):
     _current_model: str = ""
     _previous_model: str = ""
@@ -381,10 +383,6 @@ class SDRunner(
             return True
         except requests.ConnectionError:
             return False
-
-    @property
-    def txt2vid_file(self):
-        return os.path.join(self.model_base_path, "videos", f"{self.prompt}_{self.seed}.mp4")
 
     @staticmethod
     def clear_memory():
@@ -828,73 +826,6 @@ class SDRunner(
                     except AttributeError:
                         pass
             return image, nsfw_content_detected
-
-    def enhance_video(self, video_frames):
-        """
-        Iterate over each video frame and call img2img on it using the same options that were passed
-        and replace each frame with the enhanced version.
-        :param video_frames: list of numpy arrays
-        :return: video_frames: list of numpy arrays
-        """
-        new_video_frames = []
-        for img in video_frames:
-            pil_image = Image.fromarray(img)
-            pil_image = pil_image.resize((self.width, self.height), Image.LANCZOS)
-            image, nsfw_detected = self.generator_sample({
-                "action": "img2img",
-                "options": {
-                    "image": pil_image,
-                    "mask": pil_image,
-                    "img2img_prompt": self.prompt,
-                    "img2img_negative_prompt": self.negative_prompt,
-                    "img2img_steps": self.steps,
-                    "img2img_ddim_eta": self.ddim_eta,
-                    "img2img_n_iter": 1,
-                    "img2img_width": self.width,
-                    "img2img_height": self.height,
-                    "img2img_n_samples": 20,
-                    "img2img_strength": 0.5,
-                    "img2img_scale": 7.5,
-                    "img2img_seed": self.seed,
-                    "img2img_model": "Stable diffusion V2",
-                    "img2img_scheduler": self.scheduler_name,
-                    "img2img_model_path": "stabilityai/stable-diffusion-2-1-base",
-                    "img2img_model_branch": "fp16",
-                    "width": self.width,
-                    "height": self.height,
-                    "do_nsfw_filter": self.do_nsfw_filter,
-                    "model_base_path": self.model_base_path,
-                    "pos_x": self.pos_x,
-                    "pos_y": self.pos_y,
-                    "outpaint_box_rect": self.outpaint_box_rect,
-                    "hf_token": self.hf_token,
-                    "enable_model_cpu_offload": self.enable_model_cpu_offload,
-                    "use_attention_slicing": self.use_attention_slicing,
-                    "use_tf32": self.use_tf32,
-                    "use_enable_vae_slicing": self.use_enable_vae_slicing,
-                    "use_xformers": self.use_xformers,
-                    "use_accelerated_transformers": self.use_accelerated_transformers,
-                    "use_torch_compile": self.use_torch_compile,
-                    "use_tiled_vae": self.use_tiled_vae,
-                }
-            }, image_var=None, use_callback=False)
-            if image:
-                # convert to numpy array and add to new_video_frames
-                new_video_frames.append(np.array(image))
-        return new_video_frames if len(new_video_frames) > 0 else video_frames
-
-    def handle_txt2vid_output(self, output):
-        pil_image = None
-        if output:
-            from diffusers.utils import export_to_video
-            video_frames = output.frames
-            os.makedirs(os.path.dirname(self.txt2vid_file), exist_ok=True)
-            #self.enhance_video(video_frames)
-            export_to_video(video_frames, self.txt2vid_file)
-            pil_image = Image.fromarray(video_frames[0])
-        else:
-            print("failed to get output from txt2vid")
-        return pil_image, None
 
     def call_pipe(self, **kwargs):
         """
