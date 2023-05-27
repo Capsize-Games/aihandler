@@ -125,7 +125,7 @@ class ModelMixin:
         else:
             kwargs = {
                 "torch_dtype": self.data_type,
-                "scheduler": self.scheduler,
+                "scheduler": self.load_scheduler(),
                 # "low_cpu_mem_usage": True, # default is already set to true
                 "variant": self.current_model_branch
             }
@@ -155,13 +155,15 @@ class ModelMixin:
                 if self.is_controlnet:
                     kwargs["controlnet"] = self.load_controlnet()
                 if self.is_superresolution:
-                    kwargs["low_res_scheduler"] = self.load_scheduler("DDPM")
+                    kwargs["low_res_scheduler"] = self.load_scheduler(force_scheduler_name="DDPM")
                 self.pipe = self.action_diffuser.from_pretrained(
                     self.model_path,
                     local_files_only=self.local_files_only,
                     use_auth_token=self.data["options"]["hf_token"],
                     **kwargs
                 )
+                if self.is_upscale:
+                    self.pipe.scheduler = self.load_scheduler(force_scheduler_name="Euler")
 
             if self.is_controlnet:
                 self.load_controlnet_scheduler()

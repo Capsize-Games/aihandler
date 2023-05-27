@@ -440,7 +440,6 @@ class SDRunner(
 
     def prepare_options(self, data):
         self.set_message(f"Preparing options...")
-        print(data)
         action = data["action"]
         options = data["options"]
         model = options.get(f"{action}_model", None)
