@@ -30,22 +30,26 @@ class SchedulerMixin:
     registered_schedulers: dict = {}
     do_change_scheduler = False
     _scheduler = None
+    current_scheduler_name = None
 
     @property
     def scheduler(self):
         return self.load_scheduler()
 
-    def load_scheduler(self, force_scheduler_name=None):
+    def load_scheduler(self, force_scheduler_name=None, config=None):
         import diffusers
-        if not force_scheduler_name and self._scheduler and not self.do_change_scheduler:
+        if (
+            not force_scheduler_name and
+            self._scheduler and not self.do_change_scheduler and
+            self.options.get(f"{self.action}_scheduler") == self.current_scheduler_name
+        ):
             return self._scheduler
+
+        self.current_scheduler_name = self.options.get(f"{self.action}_scheduler")
 
         if not self.model_path or self.model_path == "":
             traceback.print_stack()
             raise Exception("Chicken / egg problem, model path not set")
-
-        if self.is_ckpt_model or self.is_safetensors:  # skip scheduler for ckpt models
-            return None
 
         scheduler_name = force_scheduler_name if force_scheduler_name else self.scheduler_name
         if not force_scheduler_name and scheduler_name not in AVAILABLE_SCHEDULERS_BY_ACTION[self.action]:
@@ -65,12 +69,17 @@ class SchedulerMixin:
         if self.current_model_branch:
             kwargs["variant"] = self.current_model_branch
         logger.info(f"Loading scheduler {self.scheduler_name} with kwargs {kwargs}")
-        self._scheduler = scheduler_class.from_pretrained(
-            self.model_path,
-            local_files_only=self.local_files_only,
-            use_auth_token=self.data["options"]["hf_token"],
-            **kwargs
-        )
+        if not config and self._scheduler:
+            config = self._scheduler.config
+        if config:
+            self._scheduler = scheduler_class.from_config(config)
+        else:
+            self._scheduler = scheduler_class.from_pretrained(
+                self.model_path,
+                local_files_only=self.local_files_only,
+                use_auth_token=self.data["options"]["hf_token"],
+                **kwargs
+            )
         return self._scheduler
 
     def _change_scheduler(self):
@@ -85,14 +94,9 @@ class SchedulerMixin:
     def _prepare_scheduler(self):
         scheduler_name = self.options.get(f"{self.action}_scheduler", "euler_a")
         if self.scheduler_name != scheduler_name:
-            self.set_message(f"Preparing scheduler...")
-            self.set_message("Loading scheduler")
             logger.info("Prepare scheduler")
             self.set_message("Preparing scheduler...")
             self.scheduler_name = scheduler_name
-            if self.is_ckpt_model or self.is_safetensors:
-                self.reload_model = True
-            else:
-                self.do_change_scheduler = True
+            self.do_change_scheduler = True
         else:
             self.do_change_scheduler = False

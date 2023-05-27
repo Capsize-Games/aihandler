@@ -626,10 +626,6 @@ class SDRunner(
             extra_args["image"] = image
             extra_args["image_guidance_scale"] = self.image_guidance_scale
         elif action == "depth2img":
-            # todo: get mask to work
-            # mask_bytes = data["options"]["mask"]
-            # mask = Image.frombytes("RGB", (self.width, self.height), mask_bytes)
-            # extra_args["depth_map"] = mask
             extra_args["image"] = image
             extra_args["strength"] = self.strength
         elif action == "txt2vid":
@@ -638,10 +634,7 @@ class SDRunner(
             extra_args["image"] = image
             extra_args["image_guidance_scale"] = self.image_guidance_scale
         elif self.is_superresolution:
-            if self.do_mega_scale:
-                pass
-            else:
-                extra_args["image"] = image
+            extra_args["image"] = image
         elif action == "outpaint":
             extra_args["image"] = image
             extra_args["mask_image"] = mask

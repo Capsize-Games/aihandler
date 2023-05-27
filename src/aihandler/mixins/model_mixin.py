@@ -44,7 +44,6 @@ class ModelMixin:
         if not data_type:
             data_type = self.data_type
         try:
-            print("Path", path)
             pipeline = self.download_from_original_stable_diffusion_ckpt(
                 path=path,
                 is_safetensors=is_safetensors,
@@ -55,7 +54,6 @@ class ModelMixin:
             if is_controlnet:
                 pipeline = self.load_controlnet_from_ckpt(pipeline)
         except Exception as e:
-            print("Something went wrong loading the model file", e)
             self.error_handler("Unable to load ckpt file")
             raise e
         # to half
@@ -94,12 +92,13 @@ class ModelMixin:
                 checkpoint_path=path,
                 original_config_file=config,
                 device=device,
+                scheduler_type="ddim",
                 from_safetensors=is_safetensors,
                 load_safety_checker=do_nsfw_filter,
                 local_files_only=self.local_files_only,
                 pipeline_class=StableDiffusionImg2ImgPipeline if self.is_controlnet else self.action_diffuser
             )
-            pipe.scheduler = self.scheduler
+            pipe.scheduler = self.load_scheduler(config=pipe.scheduler.config)
             return pipe
         # find exception: RuntimeError: Error(s) in loading state_dict for UNet2DConditionModel
         except RuntimeError as e:
@@ -143,9 +142,9 @@ class ModelMixin:
         elif self.is_txt2img and self.img2img is not None:
             self.txt2img = self.action_diffuser(**self.img2img.components)
         elif self.pipe is None or self.reload_model:
-            logger.debug("Loading model from scratch")
+            logger.info(f"Loading model from scratch {self.reload_model}")
             if self.is_ckpt_model or self.is_safetensors:
-                logger.debug("Loading ckpt or safetensors model")
+                logger.info("Loading ckpt or safetensors model")
                 self.pipe = self._load_ckpt_model(
                     is_controlnet=self.is_controlnet,
                     is_safetensors=self.is_safetensors,
@@ -157,7 +156,6 @@ class ModelMixin:
                     kwargs["controlnet"] = self.load_controlnet()
                 if self.is_superresolution:
                     kwargs["low_res_scheduler"] = self.load_scheduler("DDPM")
-                print(kwargs)
                 self.pipe = self.action_diffuser.from_pretrained(
                     self.model_path,
                     local_files_only=self.local_files_only,
