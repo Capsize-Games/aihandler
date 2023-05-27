@@ -52,8 +52,6 @@ class SDRunner(
     width: int = 512
     steps: int = 20
     ddim_eta: float = 0.5
-    C: int = 4
-    f: int = 8
     batch_size: int = 1
     n_samples: int = 1
     pos_x: int = 0
@@ -718,8 +716,6 @@ class SDRunner(
         self.num_inference_steps = int(options.get(f"{action}_steps", self.num_inference_steps))
         self.height = int(options.get(f"{action}_height", self.height))
         self.width = int(options.get(f"{action}_width", self.width))
-        self.C = int(options.get(f"{action}_C", self.C))
-        self.f = int(options.get(f"{action}_f", self.f))
         self.steps = int(options.get(f"{action}_steps", self.steps))
         self.ddim_eta = float(options.get(f"{action}_ddim_eta", self.ddim_eta))
         self.batch_size = int(options.get(f"{action}_n_samples", self.batch_size))
