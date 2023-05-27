@@ -795,7 +795,6 @@ class SDRunner(
         error_var: callable = None,
         use_callback: bool = True,
     ):
-        self.data = data
         self._image_var = image_var
         self._error_var = error_var
         self._use_callback = use_callback

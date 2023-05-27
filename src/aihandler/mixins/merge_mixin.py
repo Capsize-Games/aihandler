@@ -9,30 +9,17 @@ logger.set_level(logger.DEBUG)
 class MergeMixin:
     def merge_models(self, base_model_path, models_to_merge_path, weights, output_path, name, action):
         from diffusers import (
-            DiffusionPipeline,
             StableDiffusionPipeline,
-            StableDiffusionImg2ImgPipeline,
             StableDiffusionInstructPix2PixPipeline,
             StableDiffusionInpaintPipeline,
-            StableDiffusionDepth2ImgPipeline,
-            StableDiffusionUpscalePipeline,
-            StableDiffusionControlNetPipeline
+            StableDiffusionDepth2ImgPipeline
         )
-        self.action = action
-        # data = {
-        #     "action": action,
-        #     "options": {
-        #         f"{action}_model": base_model_path,
-        #         f"{action}_scheduler": "Euler a",
-        #         f"{action}_model_branch": "fp16",
-        #         f"model_base_path": self.model_path,
-        #     }
-        # }
-        # self.prepare_options(data)
-        # self._prepare_scheduler()
-        # self._prepare_model()
-        # print(data)
-        # self.initialize()
+        self.data = {
+            "action": action,
+            "options": {
+                "do_nsfw_filter": False
+            }
+        }
         PipeCLS = StableDiffusionPipeline
         if action == "outpaint":
             PipeCLS = StableDiffusionInpaintPipeline
