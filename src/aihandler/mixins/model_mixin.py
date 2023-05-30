@@ -175,7 +175,6 @@ class ModelMixin:
         self.pipe.model_path = self.model_path
 
         self.load_learned_embed_in_clip()
-        self.apply_memory_efficient_settings()
 
     def _is_ckpt_file(self, model):
         if not model:

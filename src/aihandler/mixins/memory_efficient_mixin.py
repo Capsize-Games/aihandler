@@ -98,27 +98,27 @@ class MemoryEfficientMixin:
 
     def apply_last_channels(self):
         if self.use_last_channels:
-            logger.debug("Enabling torch.channels_last")
+            logger.info("Enabling torch.channels_last")
             self.pipe.unet.to(memory_format=torch.channels_last)
         else:
-            logger.debug("Disabling torch.channels_last")
+            logger.info("Disabling torch.channels_last")
             self.pipe.unet.to(memory_format=torch.contiguous_format)
 
     def apply_vae_slicing(self):
         if self.action not in ["img2img", "depth2img", "pix2pix", "outpaint", "superresolution", "controlnet", "upscale"]:
             if self.use_enable_vae_slicing:
-                logger.debug("Enabling vae slicing")
+                logger.info("Enabling vae slicing")
                 self.pipe.enable_vae_slicing()
             else:
-                logger.debug("Disabling vae slicing")
+                logger.info("Disabling vae slicing")
                 self.pipe.disable_vae_slicing()
 
     def apply_attention_slicing(self):
         if self.use_attention_slicing:
-            logger.debug("Enabling attention slicing")
+            logger.info("Enabling attention slicing")
             self.pipe.enable_attention_slicing()
         else:
-            logger.debug("Disabling attention slicing")
+            logger.info("Disabling attention slicing")
             self.pipe.disable_attention_slicing()
 
     def apply_tiled_vae(self):
@@ -178,7 +178,7 @@ class MemoryEfficientMixin:
         return pipe
 
     def move_pipe_to_cpu(self, pipe):
-        logger.debug("Moving to cpu")
+        logger.info("Moving to cpu")
         try:
             pipe.to("cpu", torch.float32)
         except NotImplementedError:
@@ -187,7 +187,7 @@ class MemoryEfficientMixin:
 
     def apply_cpu_offload(self):
         if self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
-            logger.debug("Enabling sequential cpu offload")
+            logger.info("Enabling sequential cpu offload")
             self.pipe = self.move_pipe_to_cpu(self.pipe)
             try:
                 self.pipe.enable_sequential_cpu_offload()
@@ -199,7 +199,7 @@ class MemoryEfficientMixin:
         if self.enable_model_cpu_offload \
            and not self.use_enable_sequential_cpu_offload \
            and hasattr(self.pipe, "enable_model_cpu_offload"):
-            logger.debug("Enabling model cpu offload")
+            logger.info("Enabling model cpu offload")
             self.pipe = self.move_pipe_to_cpu(self.pipe)
             self.pipe.enable_model_cpu_offload()
 
