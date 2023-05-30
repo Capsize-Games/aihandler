@@ -1,11 +1,17 @@
-"""
-Wrapper functions for logging
-"""
 import logging
+from aihandler.settings import LOG_LEVEL
 
 
 class Logger:
+    """
+    Wrapper class for logging
+    """
+
     def __init__(self):
+        # disable warnings
+        import warnings
+        warnings.filterwarnings("ignore")
+
         self.DEBUG = logging.DEBUG
         self.INFO = logging.INFO
         self.WARNING = logging.WARNING
@@ -18,6 +24,10 @@ class Logger:
         self.formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(lineno)d")
         self.stream_handler.setFormatter(self.formatter)
         self.logger.addHandler(self.stream_handler)
+        logging.disable(LOG_LEVEL)
+        logging.getLogger("lightning").setLevel(logging.WARNING)
+        logging.getLogger("lightning_fabric.utilities.seed").setLevel(logging.WARNING)
+        self.set_level(self.DEBUG)
 
     def set_level(self, level):
         """

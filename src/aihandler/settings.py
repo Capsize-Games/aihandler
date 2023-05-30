@@ -83,7 +83,7 @@ UPSCALERS = ["None", "Lanczos"]
 
 MODELS = {
     "generate": {
-        "Stable Diffusion V2": {
+        "Stable Diffusion V2.1": {
             "path": "stabilityai/stable-diffusion-2-1-base",
             "branch": "fp16",
         },
