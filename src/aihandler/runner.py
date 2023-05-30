@@ -522,96 +522,74 @@ class SDRunner(
                         pass
             return image, nsfw_content_detected
 
+    def add_lora_to_pipe(self):
+        if not self.lora_loaded:
+            self.loaded_lora = []
+
+        reload_lora = False
+        if len(self.loaded_lora) > 0:
+            # comparre lora in self.options[f"{self.action}_lora"] with self.loaded_lora
+            # if the lora["name"] in options is not in self.loaded_lora, or lora["scale"] is different, reload lora
+            for lora in self.options[f"{self.action}_lora"]:
+                lora_in_loaded_lora = False
+                for loaded_lora in self.loaded_lora:
+                    if lora["name"] == loaded_lora["name"] and lora["scale"] == loaded_lora["scale"]:
+                        lora_in_loaded_lora = True
+                        break
+                if not lora_in_loaded_lora:
+                    reload_lora = True
+                    break
+            if len(self.options[f"{self.action}_lora"]) != len(self.loaded_lora):
+                reload_lora = True
+
+        if reload_lora:
+            self.loaded_lora = []
+            self.unload_unused_models()
+            # self._load_model()
+            return self.generator_sample(
+                self.data,
+                self._image_var,
+                self._error_var,
+                self._use_callback
+            )
+
+        if len(self.loaded_lora) == 0 and len(self.options[f"{self.action}_lora"]) > 0:
+            self.apply_lora()
+            self.lora_loaded = len(self.loaded_lora) > 0
+
     def call_pipe(self, **kwargs):
         """
         Generate an image using the pipe
         :param kwargs:
         :return:
         """
-        if self.is_txt2vid:
-            return self.pipe(
-                prompt_embeds=self.prompt_embeds,
-                negative_prompt_embeds=self.negative_prompt_embeds,
-                guidance_scale=self.guidance_scale,
-                num_inference_steps=self.steps,
-                num_frames=self.batch_size,
-                callback=self.callback,
-                seed=self.seed,
-            )
-        elif self.is_upscale:
-            return self.pipe(
-                prompt=self.prompt,
-                negative_prompt=self.negative_prompt,
-                image=kwargs.get("image"),
-                num_inference_steps=self.steps,
-                guidance_scale=self.guidance_scale,
-                callback=self.callback,
-                generator=torch.manual_seed(self.seed)
-            )
-        elif self.is_superresolution:
-            return self.pipe(
-                prompt_embeds=self.prompt_embeds,
-                negative_prompt_embeds=self.negative_prompt_embeds,
-                guidance_scale=self.guidance_scale,
-                num_inference_steps=self.steps,
-                num_images_per_prompt=1,
-                callback=self.callback,
-                # cross_attention_kwargs={"scale": 0.5},
-                **kwargs
-            )
-        else:
+        args = {
+            "num_inference_steps": self.steps,
+            "guidance_scale": self.guidance_scale,
+            "callback": self.callback,
+        }
+        if not self.is_txt2vid and not self.is_upscale and not self.is_superresolution:
             # self.pipe = self.call_pipe_extension(**kwargs)  TODO: extensions
-            if not self.lora_loaded:
-                self.loaded_lora = []
-
-            reload_lora = False
-            if len(self.loaded_lora) > 0:
-                # comparre lora in self.options[f"{self.action}_lora"] with self.loaded_lora
-                # if the lora["name"] in options is not in self.loaded_lora, or lora["scale"] is different, reload lora
-                for lora in self.options[f"{self.action}_lora"]:
-                    lora_in_loaded_lora = False
-                    for loaded_lora in self.loaded_lora:
-                        if lora["name"] == loaded_lora["name"] and lora["scale"] == loaded_lora["scale"]:
-                            lora_in_loaded_lora = True
-                            break
-                    if not lora_in_loaded_lora:
-                        reload_lora = True
-                        break
-                if len(self.options[f"{self.action}_lora"]) != len(self.loaded_lora):
-                    reload_lora = True
-
-            if reload_lora:
-                self.loaded_lora = []
-                self.unload_unused_models()
-                #self._load_model()
-                return self.generator_sample(
-                    self.data,
-                    self._image_var,
-                    self._error_var,
-                    self._use_callback
-                )
-            
-            if len(self.loaded_lora) == 0 and len(self.options[f"{self.action}_lora"]) > 0:
-                self.apply_lora()
-                self.lora_loaded = len(self.loaded_lora) > 0
-
-            return self.pipe(
-                prompt_embeds=self.prompt_embeds,
-                negative_prompt_embeds=self.negative_prompt_embeds,
-                guidance_scale=self.guidance_scale,
-                num_inference_steps=self.steps,
-                num_images_per_prompt=1,
-                callback=self.callback,
-                # cross_attention_kwargs={"scale": 0.5},
-                **kwargs
-            )
+            self.add_lora_to_pipe()
+        if self.is_upscale:
+            args["prompt"] = self.prompt
+            args["negative_prompt"] = self.negative_prompt
+            args["image"] = kwargs.get("image")
+            args["generator"] = torch.manual_seed(self.seed)
+        else:
+            args["prompt_embeds"] = self.prompt_embeds
+            args["negative_prompt_embeds"] = self.negative_prompt_embeds
+        if self.is_txt2vid:
+            args["num_frames"] = self.batch_size
+        if not self.is_upscale:
+            args.update(kwargs)
+        print(args)
+        return self.pipe(**args)
 
     def prepare_extra_args(self, data, image, mask):
         action = self.action
-
         extra_args = {
         }
-
         if action == "txt2img":
             extra_args["width"] = self.width
             extra_args["height"] = self.height
