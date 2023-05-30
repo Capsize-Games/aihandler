@@ -583,7 +583,6 @@ class SDRunner(
             args["num_frames"] = self.batch_size
         if not self.is_upscale:
             args.update(kwargs)
-        print(args)
         return self.pipe(**args)
 
     def prepare_extra_args(self, data, image, mask):
