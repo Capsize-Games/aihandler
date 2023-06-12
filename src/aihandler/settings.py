@@ -61,7 +61,7 @@ SCHEDULERS = [
     PNDM,
     DPM_SINGLESTEP,
     # REPAINT,
-    KVE,
+    # KVE,
     UNIPC,
     # VESDE,
     # VPSDE,
@@ -229,7 +229,7 @@ MODELS = {
             "path": "stabilityai/sd-x2-latent-upscaler",
             "branch": "fp16",
         }
-    }
+    },
 }
 TEXT_MODELS = {
     "flan-t5-xxl": {
