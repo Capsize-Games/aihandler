@@ -1,18 +1,10 @@
-import os
-import sys
-import platform
 from setuptools import setup, find_packages
 
 
 install_requires = [
-    # "torch==2.0.0",
-    # "torchvision==0.15.1",
-    # "torchaudio==2.0.1",
-    # "bitsandbytes==0.38.0",
     "einops==0.6.1",
     "ninja==1.11.1",
     "JIT==0.2.7",
-    #"triton==2.0.0",
     "tqdm==4.65.0",
     "xformers==0.0.20",
     "omegaconf==2.3.0",
@@ -50,7 +42,7 @@ install_requires = [
 
 setup(
     name="aihandler",
-    version="1.15.3",
+    version="1.15.4",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
