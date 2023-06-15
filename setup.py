@@ -42,7 +42,7 @@ install_requires = [
 
 setup(
     name="aihandler",
-    version="1.15.5",
+    version="1.15.6",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
@@ -54,7 +54,6 @@ setup(
     package_dir={"": "src"},
     packages=find_packages("src"),
     include_package_data=True,
-    python_requires=">=3.10.0",
     install_requires=install_requires,
     extras_require={},
 )
