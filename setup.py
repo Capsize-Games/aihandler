@@ -10,7 +10,7 @@ install_requires = [
     "omegaconf==2.3.0",
     "accelerate==0.19.0",
     "controlnet_aux==0.0.3",
-    "huggingface-hub==0.14.1",
+    "huggingface-hub==0.15.1",
     "numpy==1.23.5",
     "Pillow==9.5.0",
     "pip==23.1.2",
@@ -32,8 +32,8 @@ install_requires = [
     "setuptools==67.7.2",
     "typing_extensions==4.5.0",
     "urllib3==1.26.15",
-    "diffusers==0.16.1",
-    "transformers==4.29.1",
+    "diffusers==0.17.1",
+    "transformers==4.30.1",
     "compel==1.1.5",
     "sympy==1.12.0",
     "regex",
@@ -42,7 +42,7 @@ install_requires = [
 
 setup(
     name="aihandler",
-    version="1.15.6",
+    version="1.15.7",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
