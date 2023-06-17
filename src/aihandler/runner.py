@@ -42,6 +42,7 @@ class SDRunner(
     do_cancel = False
     safety_checker = None
     current_model_branch = None
+    pipe_prior = None
     txt2img = None
     img2img = None
     pix2pix = None
@@ -65,6 +66,7 @@ class SDRunner(
     }
     _model = None
     _controlnet_type = None
+    kadinsky_loaded = False
     reload_model = False
 
     @property
@@ -176,15 +178,23 @@ class SDRunner(
         return self.options.get("do_nsfw_filter", True) == True
 
     @property
+    def use_kadinsky(self):
+        return self.options.get(f"{self.action}_use_kadinsky", False) == True
+
+    @property
     def use_xformers(self):
         return self.options.get("use_xformers", False) == True
 
     @property
     def use_tiled_vae(self):
+        if self.use_kadinsky:
+            return False
         return self.options.get("use_tiled_vae", False) == True
 
     @property
     def use_accelerated_transformers(self):
+        if self.use_kadinsky:
+            return False
         return self.options.get("use_accelerated_transformers", False) == True
 
     @property
@@ -470,7 +480,8 @@ class SDRunner(
             self._negative_prompt_embeds = None
 
         self.data = data
-        torch.backends.cuda.matmul.allow_tf32 = self.use_tf32
+        if not self.use_kadinsky:
+            torch.backends.cuda.matmul.allow_tf32 = self.use_tf32
 
     def load_safety_checker(self, action):
         if not self.do_nsfw_filter:
@@ -481,8 +492,10 @@ class SDRunner(
     def do_sample(self, **kwargs):
         logger.info(f"Sampling {self.action}")
         self.set_message(f"Generating image...")
-        logger.info(f"Load safety checker")
-        self.load_safety_checker(self.action)
+
+        if not self.use_kadinsky:
+            logger.info(f"Load safety checker")
+            self.load_safety_checker(self.action)
 
         # self.apply_cpu_offload()
         try:
@@ -499,7 +512,7 @@ class SDRunner(
             logger.info(f"Generating image")
             output = self.call_pipe(**kwargs)
         except Exception as e:
-            self.error_handler(e)
+            error_message = str(e)
             if "`flshattF` is not supported because" in str(e):
                 # try again
                 logger.info("Disabling xformers and trying again")
@@ -507,6 +520,10 @@ class SDRunner(
                 self.pipe.vae.enable_xformers_memory_efficient_attention(attention_op=None)
                 # redo the sample with xformers enabled
                 return self.do_sample(**kwargs)
+            elif "Scheduler.step() got an unexpected keyword argument" in str(e):
+                error_message = "Invalid scheduler"
+                self.clear_scheduler()
+            self.error_handler(error_message)
             output = None
 
         if self.is_txt2vid:
@@ -568,7 +585,7 @@ class SDRunner(
             "guidance_scale": self.guidance_scale,
             "callback": self.callback,
         }
-        if not self.is_txt2vid and not self.is_upscale and not self.is_superresolution:
+        if not self.use_kadinsky and not self.is_txt2vid and not self.is_upscale and not self.is_superresolution:
             # self.pipe = self.call_pipe_extension(**kwargs)  TODO: extensions
             self.add_lora_to_pipe()
         if self.is_upscale:
@@ -576,14 +593,58 @@ class SDRunner(
             args["negative_prompt"] = self.negative_prompt
             args["image"] = kwargs.get("image")
             args["generator"] = torch.manual_seed(self.seed)
-        else:
+        elif self.is_txt2vid:
+            args["num_frames"] = self.batch_size
+        elif not self.use_kadinsky:
             args["prompt_embeds"] = self.prompt_embeds
             args["negative_prompt_embeds"] = self.negative_prompt_embeds
-        if self.is_txt2vid:
-            args["num_frames"] = self.batch_size
         if not self.is_upscale:
             args.update(kwargs)
+        if self.use_kadinsky:
+            self.kadinsky_loaded = True
+            self.load_kadinsky_pipe_prior()
+            image_embeds, negative_image_embeds = self.get_kadinsky_image_emebds()
+            self.load_kadinsky_model()
+            args = {
+                "prompt": self.prompt,
+                "image_embeds": image_embeds,
+                "negative_image_embeds": negative_image_embeds,
+                "height": self.height,
+                "width": self.width
+            }
         return self.pipe(**args)
+
+    def get_kadinsky_image_emebds(self):
+        return self.pipe_prior(
+            prompt=self.prompt,
+            negative_prompt=self.negative_prompt,
+            guidance_scale=1.0
+        ).to_tuple()
+
+    def load_kadinsky_pipe_prior(self):
+        from diffusers import DiffusionPipeline
+        if self.pipe:
+            self.pipe.to("cpu")
+        if not self.pipe_prior:
+            self.pipe_prior = DiffusionPipeline.from_pretrained(
+                "kandinsky-community/kandinsky-2-1-prior",
+                torch_dtype=self.data_type
+            )
+        self.pipe_prior.to("cuda")
+
+    def load_kadinsky_model(self):
+        from diffusers import DiffusionPipeline
+        self.pipe_prior.to("cpu")
+        if not self.pipe:
+            self.pipe = DiffusionPipeline.from_pretrained(
+                "kandinsky-community/kandinsky-2-1",
+                torch_dtype=self.data_type
+            )
+        self.pipe.to("cuda")
+        self._change_scheduler()
+        logger.info(f"Load safety checker")
+        self.load_safety_checker(self.action)
+        self.apply_memory_efficient_settings()
 
     def prepare_extra_args(self, data, image, mask):
         action = self.action
@@ -698,16 +759,31 @@ class SDRunner(
 
         return image
 
+    @property
+    def do_clear_kadinsky(self):
+        return self.kadinsky_loaded != self.use_kadinsky
+
+    def clear_kadinsky(self):
+        self.pipe_prior = None
+        self.unload_unused_models()
+        self.reload_model = True
+        self.kadinsky_loaded = False
+        self.clear_scheduler()
+        self.current_model = None
+
     def generate(self, data: dict, image_var: ImageVar = None, use_callback: bool = True):
         logger.info("generate called")
         self.do_cancel = False
         self.prepare_options(data)
+        if self.do_clear_kadinsky:
+            self.clear_kadinsky()
         self._prepare_scheduler()
         self._prepare_model()
         self.initialize()
         self._change_scheduler()
 
-        self.apply_memory_efficient_settings()
+        if not self.use_kadinsky:
+            self.apply_memory_efficient_settings()
         if self.is_txt2vid or self.is_upscale:
             total_to_generate = 1
         else:

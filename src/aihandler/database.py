@@ -46,6 +46,7 @@ DEFAULT_GENERATOR_SETTINGS = {
     "strength": 50,
     "image_guidance_scale": 150,
     "n_samples": 1,
+    "use_kadinsky": False,
 }
 GENERATOR_TYPES = {
     "prompt": StringVar,
@@ -63,6 +64,7 @@ GENERATOR_TYPES = {
     "strength": DoubleVar,
     "image_guidance_scale": DoubleVar,
     "n_samples": IntVar,
+    "use_kadinsky": BooleanVar,
 }
 USER = os.environ.get("USER", "")
 default_model_path = os.path.join("/", "home", USER, "stablediffusion")

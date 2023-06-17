@@ -32,6 +32,13 @@ class SchedulerMixin:
     _scheduler = None
     current_scheduler_name = None
 
+    def clear_scheduler(self):
+        # self.scheduler_name = ""
+        # self.do_change_scheduler = True
+        # self._scheduler = None
+        # self.current_scheduler_name = None
+        pass
+
     def load_scheduler(self, force_scheduler_name=None, config=None):
         import diffusers
         if (
@@ -76,7 +83,7 @@ class SchedulerMixin:
         return self._scheduler
 
     def _change_scheduler(self):
-        if not self.do_change_scheduler:
+        if not self.do_change_scheduler or not self.pipe:
             return
         if self.model_path and self.model_path != "":
             config = self._scheduler.config if self._scheduler else None

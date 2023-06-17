@@ -143,6 +143,8 @@ class ModelMixin:
             self.txt2img = self.action_diffuser(**self.img2img.components)
         elif self.pipe is None or self.reload_model:
             logger.info(f"Loading model from scratch {self.reload_model}")
+            if self.use_kadinsky:
+                return
             if self.is_ckpt_model or self.is_safetensors:
                 logger.info("Loading ckpt or safetensors model")
                 self.pipe = self._load_ckpt_model(
