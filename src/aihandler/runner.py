@@ -224,6 +224,10 @@ class SDRunner(
         return self.options.get(f"{self.action}_use_kadinsky", False) == True
 
     @property
+    def use_compel(self):
+        return True
+
+    @property
     def use_xformers(self):
         return self.options.get("use_xformers", False) == True
 
@@ -638,8 +642,12 @@ class SDRunner(
         elif self.is_txt2vid:
             args["num_frames"] = self.batch_size
         elif not self.use_kadinsky:
-            args["prompt_embeds"] = self.prompt_embeds
-            args["negative_prompt_embeds"] = self.negative_prompt_embeds
+            if self.use_compel:
+                args["prompt_embeds"] = self.prompt_embeds
+                args["negative_prompt_embeds"] = self.negative_prompt_embeds
+            else:
+                args["prompt"] = self.prompt
+                args["negative_prompt"] = self.negative_prompt
         if not self.is_upscale:
             args.update(kwargs)
         if self.use_kadinsky:
