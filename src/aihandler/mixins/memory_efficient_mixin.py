@@ -140,7 +140,7 @@ class MemoryEfficientMixin:
             logger.info("Applying xformers")
             from xformers.ops import MemoryEfficientAttentionFlashAttentionOp
             self.pipe.enable_xformers_memory_efficient_attention()
-        else:
+        elif not self.use_kadinsky:
             logger.info("Disabling xformers")
             self.pipe.disable_xformers_memory_efficient_attention()
 
