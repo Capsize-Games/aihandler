@@ -1,5 +1,7 @@
 import os
 import gc
+import re
+
 import numpy as np
 import requests
 from aihandler.base_runner import BaseRunner
@@ -93,13 +95,53 @@ class SDRunner(
     def seed(self):
         return self.options.get(f"{self.action}_seed", 42) + self.current_sample
 
+    @staticmethod
+    def convert_prompt_weights(prompt):
+        """
+        This function converts prompts in the style of automatic1111 to compel style prompts
+        :param prompt:
+        :return:
+        """
+        if not prompt:
+            return prompt
+        # prompt == "Example (ABC): 1.23 XYZ (DEF) (GHI:2.3)"
+        # we only want to find (ABC) and (DEF) in prompt
+        pattern = r"\([A-Z]+\)"
+        matches = re.findall(pattern, prompt)
+        # matches == ["(DEF)"]
+        for match in matches:
+            # replace matches with this:
+            # matches == ["(DEF:1.1)"]
+            # inside of prompt
+            replaced_match = match.replace(")", ":1.1)")
+            prompt = prompt.replace(match, replaced_match)
+
+        # now prompt == "Example (ABC:1.1): 1.23 XYZ (DEF:1.1) (GHI:2.3)"
+        # but we want it to look like this: "Example (ABC)1.1: 1.23 XYZ (DEF)1.1 (GHI)2.3"
+        # so we replace all ":[0-9.]+)" with ")/1"
+        pattern = r"\(([^:]+):([0-9.]+)\)"
+        matches = re.findall(pattern, prompt)
+        for match in matches:
+            prompt = prompt.replace(f"({match[0]}:{match[1]})", f"({match[0]}){match[1]}")
+        return prompt
+
     @property
     def prompt(self):
-        return self.options.get(f"{self.action}_prompt")
+        prompt = self.options.get(f"{self.action}_prompt")
+        if self.use_prompt_converter:
+            prompt = SDRunner.convert_prompt_weights(prompt)
+        return prompt
 
     @property
     def negative_prompt(self):
-        return self.options.get(f"{self.action}_negative_prompt")
+        negative_prompt = self.options.get(f"{self.action}_negative_prompt")
+        if self.use_prompt_converter:
+            negative_prompt = SDRunner.convert_prompt_weights(negative_prompt)
+        return negative_prompt
+
+    @property
+    def use_prompt_converter(self):
+        return True
 
     @property
     def guidance_scale(self):
