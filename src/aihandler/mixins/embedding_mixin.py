@@ -13,10 +13,15 @@ class EmbeddingMixin:
         self.embeds_loaded = True
         if os.path.exists(learned_embeds_path):
             logger.info("Loading embeddings...")
-            tokens = []
-            for f in os.listdir(learned_embeds_path):
-                logger.info("Loading " + os.path.join(learned_embeds_path, f))
-                path = os.path.join(learned_embeds_path, f)
-                token = f.split(".")[0]
-                self.pipe.load_textual_inversion(path, token=token)
-            self.settings_manager.settings.available_embeddings.set(", ".join(tokens))
+            try:
+                for f in os.listdir(learned_embeds_path):
+                    logger.info("Loading " + os.path.join(learned_embeds_path, f))
+                    path = os.path.join(learned_embeds_path, f)
+                    words = f.split(".")
+                    if words[-1] in ["pt", "ckpt", "pth", "safetensors"]:
+                        words = words[:-1]
+                    token = ".".join(words).lower()
+                    self.pipe.load_textual_inversion(path, token=token, weight_name=f)
+            except AttributeError as e:
+                if "load_textual_inversion" in str(e):
+                    logger.error("Embeddings not supported in this model")
