@@ -20,6 +20,8 @@ class SchedulerMixin:
         "LMS": "LMSDiscreteScheduler",
         "DPM++ 2M": "DPMSolverMultistepScheduler",
         "DPM++ 2M Karras": "DPMSolverMultistepScheduler",
+        "DPM 2M SDE Karras": "DPMSolverMultistepScheduler",
+        "DPM++ 2M SDE Karras": "DPMSolverMultistepScheduler",
         "PNDM": "PNDMScheduler",
         "DPM2": "DPMSolverSinglestepScheduler",
         "RePaint": "RePaintScheduler",
@@ -70,7 +72,11 @@ class SchedulerMixin:
             config = dict(config)
             if scheduler_name == DPMPP_MULTISTEP_K:
                 config["use_karras_sigmas"] = True
-            if scheduler_name.startswith("DPM"):
+            if scheduler_name == "DPM++ 2M SDE Karras":
+                config["algorithm_type"] = "sde-dpmsolver++"
+            elif scheduler_name == "DPM 2M SDE Karras":
+                config["algorithm_type"] = "sde-dpmsolver"
+            elif scheduler_name.startswith("DPM"):
                 if scheduler_name.find("++") != -1:
                     config["algorithm_type"] = "dpmsolver++"
                 else:

@@ -37,6 +37,8 @@ IPNM = "IPNM"
 LMS = "LMS"
 DPMPP_MULTISTEP = "DPM++ 2M"  # Multistep DPM
 DPMPP_MULTISTEP_K = "DPM++ 2M Karras"  # Multistep DPM
+DPM_MULTISTEP_SDE_K = "DPM 2M SDE Karras"  # Multistep SDE DPM
+DPMPP_MULTISTEP_SDE_K = "DPM++ 2M SDE Karras"  # Multistep SDE DPM
 PNDM = "PNDM"
 DPM2 = "DPM2"
 DPM2_A = "DPM2 a Karras"
@@ -60,6 +62,8 @@ SCHEDULERS = [
     # IPNM,
     DPMPP_MULTISTEP,
     DPMPP_MULTISTEP_K,
+    DPM_MULTISTEP_SDE_K,
+    DPMPP_MULTISTEP_SDE_K,
     PNDM,
     # REPAINT,
     # KVE,
