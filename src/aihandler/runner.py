@@ -523,7 +523,7 @@ class SDRunner(
             elif "Scheduler.step() got an unexpected keyword argument" in str(e):
                 error_message = "Invalid scheduler"
                 self.clear_scheduler()
-            self.error_handler(error_message)
+            self.log_error(error_message)
             output = None
 
         if self.is_txt2vid:
@@ -695,7 +695,7 @@ class SDRunner(
                 image, nsfw_content_detected = self.do_sample(**extra_args)
         except Exception as e:
             if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
-                self.error_handler(self.cuda_error_message)
+                self.log_error(self.cuda_error_message)
             elif "`flshattF` is not supported because" in str(e):
                 # try again
                 logger.info("Disabling xformers and trying again")
@@ -706,9 +706,7 @@ class SDRunner(
                 # redo the sample with xformers enabled
                 return self.sample_diffusers_model(data)
             else:
-                traceback.print_exc()
-                self.error_handler("Something went wrong while generating image")
-                logger.error(e)
+                self.log_error(e, "Something went wrong while generating image")
 
         self.final_callback()
 
@@ -860,42 +858,46 @@ class SDRunner(
             self.initialized = False
 
         error = None
+        error_message = ""
         try:
             self.generate(data, image_var=image_var, use_callback=use_callback)
         except OSError as e:
-            err = e.args[0]
-            logger.error(err)
-            error = "model_not_found"
-            err_obj = e
-            traceback.print_exc() if self.is_dev_env else logger.error(err_obj)
+            error_message = "model_not_found"
+            error = e
         except TypeError as e:
-            error = f"TypeError during generation {self.action}"
-            traceback.print_exc() if self.is_dev_env else logger.error(e)
+            error_message = f"TypeError during generation {self.action}"
+            error = e
         except Exception as e:
+            error = e
             if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
-                error = self.cuda_error_message
+                error_message = self.cuda_error_message
                 self.clear_memory()
             else:
-                error = f"Error during generation"
-            traceback.print_exc() if self.is_dev_env else logger.error(e)
+                error_message = f"Error during generation"
 
         if error:
+            self.log_error(error, error_message)
             self.initialized = False
             self.reload_model = True
-            if error == "model_not_found" and self.local_files_only and self.has_internet_connection:
+            if error_message == "model_not_found" and self.local_files_only and self.has_internet_connection:
                 # check if we have an internet connection
                 self.set_message("Downloading model files...")
                 self.local_files_only = False
                 self.initialize()
                 return self.generator_sample(data, image_var, error_var)
             elif not self.has_internet_connection:
-                self.error_handler("Please check your internet connection and try again.")
+                self.log_error("Please check your internet connection and try again.")
             self.scheduler_name = None
             self._current_model = None
             self.local_files_only = True
 
             # handle the error (sends to client)
-            self.error_handler(error)
+            self.log_error(error)
 
     def cancel(self):
         self.do_cancel = True
+
+    def log_error(self, error, message=None):
+        message = str(error) if not message else message
+        traceback.print_exc()
+        self.error_handler(message)
