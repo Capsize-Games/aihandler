@@ -29,16 +29,17 @@ DDIM = "DDIM"
 DDIMInverse = "DDIM Inverse"
 DDPM = "DDPM"
 DEIS = "DEIS"
-DPM2_K = "DPM Discrete"
-DPM2_A_K = "DPM Discrete a"
+DPM2_K = "DPM2 Karras"
 EULER_ANCESTRAL = "Euler a"
 EULER = "Euler"
 HEUN = "Heun"
 IPNM = "IPNM"
 LMS = "LMS"
-DPMPP_MULTISTEP = "Multistep DPM"
+DPMPP_MULTISTEP = "DPM++ 2M"  # Multistep DPM
+DPMPP_MULTISTEP_K = "DPM++ 2M Karras"  # Multistep DPM
 PNDM = "PNDM"
-DPM_SINGLESTEP = "DPM singlestep"
+DPM2 = "DPM2"
+DPM2_A = "DPM2 a Karras"
 REPAINT = "RePaint"
 KVE = "Karras Variance exploding"
 UNIPC = "UniPC"
@@ -46,22 +47,23 @@ VESDE = "VE-SDE"
 VPSDE = "VP-SDE"
 VQDIFFUSION = "VQ Diffusion"
 SCHEDULERS = [
-    DDIM,
+    EULER_ANCESTRAL,
+    EULER,
+    LMS,
+    HEUN,
+    DPM2,
+    DPM2_A,
     # DDIMInverse,
     DDPM,
     DEIS,
     DPM2_K,
-    DPM2_A_K,
-    EULER_ANCESTRAL,
-    EULER,
-    HEUN,
     # IPNM,
-    LMS,
     DPMPP_MULTISTEP,
+    DPMPP_MULTISTEP_K,
     PNDM,
-    DPM_SINGLESTEP,
     # REPAINT,
     # KVE,
+    DDIM,
     UNIPC,
     # VESDE,
     # VPSDE,

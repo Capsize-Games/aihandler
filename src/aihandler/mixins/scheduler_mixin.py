@@ -1,6 +1,7 @@
 import traceback
 from aihandler.logger import logger
 from aihandler.settings import AVAILABLE_SCHEDULERS_BY_ACTION
+from aihandler.settings import DPMPP_MULTISTEP, DPMPP_MULTISTEP_K
 
 
 class SchedulerMixin:
@@ -10,16 +11,17 @@ class SchedulerMixin:
         "DDIM Inverse": "DDIMInverseScheduler",
         "DDPM": "DDPMScheduler",
         "DEIS": "DEISMultistepScheduler",
-        "DPM Discrete": "KDPM2DiscreteScheduler",
-        "DPM Discrete a": "KDPM2AncestralDiscreteScheduler",
+        "DPM2 Karras": "KDPM2DiscreteScheduler",
+        "DPM2 a Karras": "KDPM2AncestralDiscreteScheduler",
         "Euler a": "EulerAncestralDiscreteScheduler",
         "Euler": "EulerDiscreteScheduler",
         "Heun": "HeunDiscreteScheduler",
         "IPNM": "IPNDMScheduler",
         "LMS": "LMSDiscreteScheduler",
-        "Multistep DPM": "DPMSolverMultistepScheduler",
+        "DPM++ 2M": "DPMSolverMultistepScheduler",
+        "DPM++ 2M Karras": "DPMSolverMultistepScheduler",
         "PNDM": "PNDMScheduler",
-        "DPM singlestep": "DPMSolverSinglestepScheduler",
+        "DPM2": "DPMSolverSinglestepScheduler",
         "RePaint": "RePaintScheduler",
         "Karras Variance exploding": "KarrasVeScheduler",
         "UniPC": "UniPCMultistepScheduler",
@@ -61,19 +63,28 @@ class SchedulerMixin:
         kwargs = {
             "subfolder": "scheduler"
         }
-        # check if self.scheduler_name contains ++
-        if scheduler_name.startswith("DPM"):
-            kwargs["lower_order_final"] = self.steps < 15
-            if scheduler_name.find("++") != -1:
-                kwargs["algorithm_type"] = "dpmsolver++"
-            else:
-                kwargs["algorithm_type"] = "dpmsolver"
         if self.current_model_branch:
             kwargs["variant"] = self.current_model_branch
-        logger.info(f"Loading scheduler {self.scheduler_name} with kwargs {kwargs}")
+
         if config:
+            config = dict(config)
+            if scheduler_name == DPMPP_MULTISTEP_K:
+                config["use_karras_sigmas"] = True
+            if scheduler_name.startswith("DPM"):
+                if scheduler_name.find("++") != -1:
+                    config["algorithm_type"] = "dpmsolver++"
+                else:
+                    config["algorithm_type"] = "dpmsolver"
+            print(config)
             self._scheduler = scheduler_class.from_config(config)
         else:
+            if scheduler_name == DPMPP_MULTISTEP_K:
+                kwargs["use_karras_sigmas"] = True
+            if scheduler_name.startswith("DPM"):
+                if scheduler_name.find("++") != -1:
+                    kwargs["algorithm_type"] = "dpmsolver++"
+                else:
+                    kwargs["algorithm_type"] = "dpmsolver"
             self._scheduler = scheduler_class.from_pretrained(
                 self.model_path,
                 local_files_only=self.local_files_only,
