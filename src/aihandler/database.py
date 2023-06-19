@@ -64,7 +64,7 @@ GENERATOR_TYPES = {
     "strength": DoubleVar,
     "image_guidance_scale": DoubleVar,
     "n_samples": IntVar,
-    "use_kadinsky": BooleanVar,
+    "use_kandinsky": BooleanVar,
 }
 USER = os.environ.get("USER", "")
 default_model_path = os.path.join("/", "home", USER, "stablediffusion")

@@ -97,7 +97,7 @@ class MemoryEfficientMixin:
         self._use_tiled_vae = value
 
     def apply_last_channels(self):
-        if self.use_kadinsky:
+        if self.use_kandinsky:
             return
         if self.use_last_channels:
             logger.info("Enabling torch.channels_last")
@@ -109,7 +109,7 @@ class MemoryEfficientMixin:
     def apply_vae_slicing(self):
         if self.action not in [
             "img2img", "depth2img", "pix2pix", "outpaint", "superresolution", "controlnet", "upscale"
-        ] and not self.use_kadinsky:
+        ] and not self.use_kandinsky:
             if self.use_enable_vae_slicing:
                 logger.info("Enabling vae slicing")
                 self.pipe.enable_vae_slicing()
@@ -140,7 +140,7 @@ class MemoryEfficientMixin:
             logger.info("Applying xformers")
             from xformers.ops import MemoryEfficientAttentionFlashAttentionOp
             self.pipe.enable_xformers_memory_efficient_attention()
-        elif not self.use_kadinsky:
+        elif not self.use_kandinsky:
             logger.info("Disabling xformers")
             self.pipe.disable_xformers_memory_efficient_attention()
 

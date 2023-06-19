@@ -5,6 +5,7 @@ import re
 import numpy as np
 import requests
 from aihandler.base_runner import BaseRunner
+from aihandler.mixins.kandinsky_mixin import KandinskyMixin
 from aihandler.qtvar import ImageVar
 import traceback
 import torch
@@ -34,7 +35,8 @@ class SDRunner(
     TexttovideoMixin,
     CompelMixin,
     SchedulerMixin,
-    ModelMixin
+    ModelMixin,
+    KandinskyMixin
 ):
     _current_model: str = ""
     _previous_model: str = ""
@@ -44,7 +46,6 @@ class SDRunner(
     do_cancel = False
     safety_checker = None
     current_model_branch = None
-    pipe_prior = None
     txt2img = None
     img2img = None
     pix2pix = None
@@ -68,7 +69,6 @@ class SDRunner(
     }
     _model = None
     _controlnet_type = None
-    kadinsky_loaded = False
     reload_model = False
 
     @property
@@ -220,10 +220,6 @@ class SDRunner(
         return self.options.get("do_nsfw_filter", True) == True
 
     @property
-    def use_kadinsky(self):
-        return self.options.get(f"{self.action}_use_kadinsky", False) == True
-
-    @property
     def use_compel(self):
         return True
 
@@ -233,13 +229,13 @@ class SDRunner(
 
     @property
     def use_tiled_vae(self):
-        if self.use_kadinsky:
+        if self.use_kandinsky:
             return False
         return self.options.get("use_tiled_vae", False) == True
 
     @property
     def use_accelerated_transformers(self):
-        if self.use_kadinsky:
+        if self.use_kandinsky:
             return False
         return self.options.get("use_accelerated_transformers", False) == True
 
@@ -526,7 +522,7 @@ class SDRunner(
             self._negative_prompt_embeds = None
 
         self.data = data
-        if not self.use_kadinsky:
+        if not self.use_kandinsky:
             torch.backends.cuda.matmul.allow_tf32 = self.use_tf32
 
     def load_safety_checker(self, action):
@@ -539,7 +535,7 @@ class SDRunner(
         logger.info(f"Sampling {self.action}")
         self.set_message(f"Generating image...")
 
-        if not self.use_kadinsky:
+        if not self.use_kandinsky:
             logger.info(f"Load safety checker")
             self.load_safety_checker(self.action)
 
@@ -631,7 +627,7 @@ class SDRunner(
             "guidance_scale": self.guidance_scale,
             "callback": self.callback,
         }
-        if not self.use_kadinsky and not self.is_txt2vid and not self.is_upscale and not self.is_superresolution:
+        if not self.use_kandinsky and not self.is_txt2vid and not self.is_upscale and not self.is_superresolution:
             # self.pipe = self.call_pipe_extension(**kwargs)  TODO: extensions
             self.add_lora_to_pipe()
         if self.is_upscale:
@@ -641,7 +637,7 @@ class SDRunner(
             args["generator"] = torch.manual_seed(self.seed)
         elif self.is_txt2vid:
             args["num_frames"] = self.batch_size
-        elif not self.use_kadinsky:
+        elif not self.use_kandinsky:
             if self.use_compel:
                 args["prompt_embeds"] = self.prompt_embeds
                 args["negative_prompt_embeds"] = self.negative_prompt_embeds
@@ -650,51 +646,9 @@ class SDRunner(
                 args["negative_prompt"] = self.negative_prompt
         if not self.is_upscale:
             args.update(kwargs)
-        if self.use_kadinsky:
-            self.kadinsky_loaded = True
-            self.load_kadinsky_pipe_prior()
-            image_embeds, negative_image_embeds = self.get_kadinsky_image_emebds()
-            self.load_kadinsky_model()
-            args = {
-                "prompt": self.prompt,
-                "image_embeds": image_embeds,
-                "negative_image_embeds": negative_image_embeds,
-                "height": self.height,
-                "width": self.width
-            }
+        if self.use_kandinsky:
+            return self.kandinsky_call_pipe(**kwargs)
         return self.pipe(**args)
-
-    def get_kadinsky_image_emebds(self):
-        return self.pipe_prior(
-            prompt=self.prompt,
-            negative_prompt=self.negative_prompt,
-            guidance_scale=1.0
-        ).to_tuple()
-
-    def load_kadinsky_pipe_prior(self):
-        from diffusers import DiffusionPipeline
-        if self.pipe:
-            self.pipe.to("cpu")
-        if not self.pipe_prior:
-            self.pipe_prior = DiffusionPipeline.from_pretrained(
-                "kandinsky-community/kandinsky-2-1-prior",
-                torch_dtype=self.data_type
-            )
-        self.pipe_prior.to("cuda")
-
-    def load_kadinsky_model(self):
-        from diffusers import DiffusionPipeline
-        self.pipe_prior.to("cpu")
-        if not self.pipe:
-            self.pipe = DiffusionPipeline.from_pretrained(
-                "kandinsky-community/kandinsky-2-1",
-                torch_dtype=self.data_type
-            )
-        self.pipe.to("cuda")
-        self._change_scheduler()
-        logger.info(f"Load safety checker")
-        self.load_safety_checker(self.action)
-        self.apply_memory_efficient_settings()
 
     def prepare_extra_args(self, data, image, mask):
         action = self.action
@@ -807,30 +761,18 @@ class SDRunner(
 
         return image
 
-    @property
-    def do_clear_kadinsky(self):
-        return self.kadinsky_loaded != self.use_kadinsky
-
-    def clear_kadinsky(self):
-        self.pipe_prior = None
-        self.unload_unused_models()
-        self.reload_model = True
-        self.kadinsky_loaded = False
-        self.clear_scheduler()
-        self.current_model = None
-
     def generate(self, data: dict, image_var: ImageVar = None, use_callback: bool = True):
         logger.info("generate called")
         self.do_cancel = False
         self.prepare_options(data)
-        if self.do_clear_kadinsky:
-            self.clear_kadinsky()
+        if self.do_clear_kandinsky:
+            self.clear_kandinsky()
         self._prepare_scheduler()
         self._prepare_model()
         self.initialize()
         self._change_scheduler()
 
-        if not self.use_kadinsky:
+        if not self.use_kandinsky:
             self.apply_memory_efficient_settings()
         if self.is_txt2vid or self.is_upscale:
             total_to_generate = 1
