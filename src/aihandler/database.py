@@ -256,6 +256,8 @@ class RunAISettings(BaseSettings):
         self.import_metadata = BooleanVar(app)
         self.latest_version_check = BooleanVar(app, True)
 
+        self.show_active_image_area = BooleanVar(app, False)
+
     def reset_settings_to_default(self):
         # pasting / generating
         self.paste_at_working_size.set(False)
@@ -315,6 +317,7 @@ class RunAISettings(BaseSettings):
         self.image_export_metadata_scheduler.set(False)
         self.export_metadata.set(False)
         self.import_metadata.set(False)
+        self.show_active_image_area.set(False)
 
 
 class PromptSettings(BaseSettings):
