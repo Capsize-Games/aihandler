@@ -10,6 +10,7 @@ class EmbeddingMixin:
             learned_embeds_path = os.path.join(self.model_base_path, "embeddings")
         if self.embeds_loaded:
             return
+        embeddings_not_supported = False
         self.embeds_loaded = True
         if os.path.exists(learned_embeds_path):
             logger.info("Loading embeddings...")
@@ -24,4 +25,10 @@ class EmbeddingMixin:
                     self.pipe.load_textual_inversion(path, token=token, weight_name=f)
             except AttributeError as e:
                 if "load_textual_inversion" in str(e):
-                    logger.error("Embeddings not supported in this model")
+                    embeddings_not_supported = True
+                else:
+                    raise e
+            except RuntimeError as e:
+                embeddings_not_supported = True
+            if embeddings_not_supported:
+                logger.warning("Embeddings not supported in this model")
