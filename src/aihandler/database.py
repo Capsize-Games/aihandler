@@ -46,7 +46,7 @@ DEFAULT_GENERATOR_SETTINGS = {
     "strength": 50,
     "image_guidance_scale": 150,
     "n_samples": 1,
-    "use_kadinsky": False,
+    "use_kandinsky": False,
 }
 GENERATOR_TYPES = {
     "prompt": StringVar,
