@@ -9,7 +9,7 @@ class KandinskyMixin:
 
     @property
     def use_kandinsky(self):
-        return self.options.get(f"{self.action}_use_kandinsky", False) == True
+        return self.options.get(f"generator_section") == "kandinsky"
 
     @property
     def do_clear_kandinsky(self):

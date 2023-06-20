@@ -80,6 +80,10 @@ GENERATORS = [
     "superresolution",
     "controlnet",
     "txt2vid",
+    "kandinsky_txt2img",
+    "kandinsky_img2img",
+    "kandinsky_inpaint",
+    "kandinsky_outpaint",
 ]
 
 class PropertyBase:
@@ -112,6 +116,7 @@ class PropertyBase:
 
 class BaseSettings(PropertyBase):
     namespace = ""
+    generator = "stablediffusion"
 
     def __getattr__(self, name):
         """
@@ -125,16 +130,23 @@ class BaseSettings(PropertyBase):
         except AttributeError as e:
             # check if the property is on this class
             # check if name_spaced already in name
-            if name.startswith(self.namespace):
+            namespace = self.namespace
+            if self.generator == "kandinsky":
+                namespace = f"kandinsky_{namespace}"
+            if name.startswith(namespace):
                 raise e
             else:
-                name_spaced = f"{self.namespace}_{name}"
+                name_spaced = f"{namespace}_{name}"
                 if hasattr(self, name_spaced):
                     return getattr(self, name_spaced)
             raise e
 
-    def set_namespace(self, namespace):
+    def set_namespace(self, namespace, generator="stablediffusion"):
         self.namespace = namespace
+        self.set_generator(generator)
+
+    def set_generator(self, generator):
+        self.generator = generator
 
     def reset_settings_to_default(self):
         pass
