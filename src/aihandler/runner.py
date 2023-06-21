@@ -1,8 +1,11 @@
 import os
 import gc
+import re
+
 import numpy as np
 import requests
 from aihandler.base_runner import BaseRunner
+from aihandler.mixins.kandinsky_mixin import KandinskyMixin
 from aihandler.qtvar import ImageVar
 import traceback
 import torch
@@ -32,7 +35,8 @@ class SDRunner(
     TexttovideoMixin,
     CompelMixin,
     SchedulerMixin,
-    ModelMixin
+    ModelMixin,
+    KandinskyMixin
 ):
     _current_model: str = ""
     _previous_model: str = ""
@@ -91,13 +95,53 @@ class SDRunner(
     def seed(self):
         return self.options.get(f"{self.action}_seed", 42) + self.current_sample
 
+    @staticmethod
+    def convert_prompt_weights(prompt):
+        """
+        This function converts prompts in the style of automatic1111 to compel style prompts
+        :param prompt:
+        :return:
+        """
+        if not prompt:
+            return prompt
+        # prompt == "Example (ABC): 1.23 XYZ (DEF) (GHI:2.3)"
+        # we only want to find (ABC) and (DEF) in prompt
+        pattern = r"\([A-Z]+\)"
+        matches = re.findall(pattern, prompt)
+        # matches == ["(DEF)"]
+        for match in matches:
+            # replace matches with this:
+            # matches == ["(DEF:1.1)"]
+            # inside of prompt
+            replaced_match = match.replace(")", ":1.1)")
+            prompt = prompt.replace(match, replaced_match)
+
+        # now prompt == "Example (ABC:1.1): 1.23 XYZ (DEF:1.1) (GHI:2.3)"
+        # but we want it to look like this: "Example (ABC)1.1: 1.23 XYZ (DEF)1.1 (GHI)2.3"
+        # so we replace all ":[0-9.]+)" with ")/1"
+        pattern = r"\(([^:]+):([0-9.]+)\)"
+        matches = re.findall(pattern, prompt)
+        for match in matches:
+            prompt = prompt.replace(f"({match[0]}:{match[1]})", f"({match[0]}){match[1]}")
+        return prompt
+
     @property
     def prompt(self):
-        return self.options.get(f"{self.action}_prompt")
+        prompt = self.options.get(f"{self.action}_prompt")
+        if self.use_prompt_converter:
+            prompt = SDRunner.convert_prompt_weights(prompt)
+        return prompt
 
     @property
     def negative_prompt(self):
-        return self.options.get(f"{self.action}_negative_prompt")
+        negative_prompt = self.options.get(f"{self.action}_negative_prompt")
+        if self.use_prompt_converter:
+            negative_prompt = SDRunner.convert_prompt_weights(negative_prompt)
+        return negative_prompt
+
+    @property
+    def use_prompt_converter(self):
+        return True
 
     @property
     def guidance_scale(self):
@@ -176,15 +220,23 @@ class SDRunner(
         return self.options.get("do_nsfw_filter", True) == True
 
     @property
+    def use_compel(self):
+        return True
+
+    @property
     def use_xformers(self):
         return self.options.get("use_xformers", False) == True
 
     @property
     def use_tiled_vae(self):
+        if self.use_kandinsky:
+            return False
         return self.options.get("use_tiled_vae", False) == True
 
     @property
     def use_accelerated_transformers(self):
+        if self.use_kandinsky:
+            return False
         return self.options.get("use_accelerated_transformers", False) == True
 
     @property
@@ -470,7 +522,8 @@ class SDRunner(
             self._negative_prompt_embeds = None
 
         self.data = data
-        torch.backends.cuda.matmul.allow_tf32 = self.use_tf32
+        if not self.use_kandinsky:
+            torch.backends.cuda.matmul.allow_tf32 = self.use_tf32
 
     def load_safety_checker(self, action):
         if not self.do_nsfw_filter:
@@ -481,8 +534,10 @@ class SDRunner(
     def do_sample(self, **kwargs):
         logger.info(f"Sampling {self.action}")
         self.set_message(f"Generating image...")
-        logger.info(f"Load safety checker")
-        self.load_safety_checker(self.action)
+
+        if not self.use_kandinsky:
+            logger.info(f"Load safety checker")
+            self.load_safety_checker(self.action)
 
         # self.apply_cpu_offload()
         try:
@@ -499,7 +554,7 @@ class SDRunner(
             logger.info(f"Generating image")
             output = self.call_pipe(**kwargs)
         except Exception as e:
-            self.error_handler(e)
+            error_message = str(e)
             if "`flshattF` is not supported because" in str(e):
                 # try again
                 logger.info("Disabling xformers and trying again")
@@ -507,6 +562,10 @@ class SDRunner(
                 self.pipe.vae.enable_xformers_memory_efficient_attention(attention_op=None)
                 # redo the sample with xformers enabled
                 return self.do_sample(**kwargs)
+            elif "Scheduler.step() got an unexpected keyword argument" in str(e):
+                error_message = "Invalid scheduler"
+                self.clear_scheduler()
+            self.log_error(error_message)
             output = None
 
         if self.is_txt2vid:
@@ -568,7 +627,7 @@ class SDRunner(
             "guidance_scale": self.guidance_scale,
             "callback": self.callback,
         }
-        if not self.is_txt2vid and not self.is_upscale and not self.is_superresolution:
+        if not self.use_kandinsky and not self.is_txt2vid and not self.is_upscale and not self.is_superresolution:
             # self.pipe = self.call_pipe_extension(**kwargs)  TODO: extensions
             self.add_lora_to_pipe()
         if self.is_upscale:
@@ -576,13 +635,19 @@ class SDRunner(
             args["negative_prompt"] = self.negative_prompt
             args["image"] = kwargs.get("image")
             args["generator"] = torch.manual_seed(self.seed)
-        else:
-            args["prompt_embeds"] = self.prompt_embeds
-            args["negative_prompt_embeds"] = self.negative_prompt_embeds
-        if self.is_txt2vid:
+        elif self.is_txt2vid:
             args["num_frames"] = self.batch_size
+        elif not self.use_kandinsky:
+            if self.use_compel:
+                args["prompt_embeds"] = self.prompt_embeds
+                args["negative_prompt_embeds"] = self.negative_prompt_embeds
+            else:
+                args["prompt"] = self.prompt
+                args["negative_prompt"] = self.negative_prompt
         if not self.is_upscale:
             args.update(kwargs)
+        if self.use_kandinsky:
+            return self.kandinsky_call_pipe(**kwargs)
         return self.pipe(**args)
 
     def prepare_extra_args(self, data, image, mask):
@@ -634,7 +699,7 @@ class SDRunner(
                 image, nsfw_content_detected = self.do_sample(**extra_args)
         except Exception as e:
             if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
-                self.error_handler(self.cuda_error_message)
+                self.log_error(self.cuda_error_message)
             elif "`flshattF` is not supported because" in str(e):
                 # try again
                 logger.info("Disabling xformers and trying again")
@@ -645,9 +710,7 @@ class SDRunner(
                 # redo the sample with xformers enabled
                 return self.sample_diffusers_model(data)
             else:
-                traceback.print_exc()
-                self.error_handler("Something went wrong while generating image")
-                logger.error(e)
+                self.log_error(e, "Something went wrong while generating image")
 
         self.final_callback()
 
@@ -702,12 +765,15 @@ class SDRunner(
         logger.info("generate called")
         self.do_cancel = False
         self.prepare_options(data)
+        if self.do_clear_kandinsky:
+            self.clear_kandinsky()
         self._prepare_scheduler()
         self._prepare_model()
         self.initialize()
         self._change_scheduler()
 
-        self.apply_memory_efficient_settings()
+        if not self.use_kandinsky:
+            self.apply_memory_efficient_settings()
         if self.is_txt2vid or self.is_upscale:
             total_to_generate = 1
         else:
@@ -784,42 +850,46 @@ class SDRunner(
             self.initialized = False
 
         error = None
+        error_message = ""
         try:
             self.generate(data, image_var=image_var, use_callback=use_callback)
         except OSError as e:
-            err = e.args[0]
-            logger.error(err)
-            error = "model_not_found"
-            err_obj = e
-            traceback.print_exc() if self.is_dev_env else logger.error(err_obj)
+            error_message = "model_not_found"
+            error = e
         except TypeError as e:
-            error = f"TypeError during generation {self.action}"
-            traceback.print_exc() if self.is_dev_env else logger.error(e)
+            error_message = f"TypeError during generation {self.action}"
+            error = e
         except Exception as e:
+            error = e
             if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
-                error = self.cuda_error_message
+                error_message = self.cuda_error_message
                 self.clear_memory()
             else:
-                error = f"Error during generation"
-            traceback.print_exc() if self.is_dev_env else logger.error(e)
+                error_message = f"Error during generation"
 
         if error:
+            self.log_error(error, error_message)
             self.initialized = False
             self.reload_model = True
-            if error == "model_not_found" and self.local_files_only and self.has_internet_connection:
+            if error_message == "model_not_found" and self.local_files_only and self.has_internet_connection:
                 # check if we have an internet connection
                 self.set_message("Downloading model files...")
                 self.local_files_only = False
                 self.initialize()
                 return self.generator_sample(data, image_var, error_var)
             elif not self.has_internet_connection:
-                self.error_handler("Please check your internet connection and try again.")
+                self.log_error("Please check your internet connection and try again.")
             self.scheduler_name = None
             self._current_model = None
             self.local_files_only = True
 
             # handle the error (sends to client)
-            self.error_handler(error)
+            self.log_error(error)
 
     def cancel(self):
         self.do_cancel = True
+
+    def log_error(self, error, message=None):
+        message = str(error) if not message else message
+        traceback.print_exc()
+        self.error_handler(message)

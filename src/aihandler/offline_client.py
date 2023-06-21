@@ -4,6 +4,8 @@ import queue
 import threading
 import time
 import base64
+import traceback
+
 from settings import LOG_LEVEL
 from io import BytesIO
 from PIL import Image
@@ -107,6 +109,7 @@ class OfflineClient:
 
     def message_handler(self, message=None, error=False):
         if error:
+            traceback.print_exc()
             logger.error(message)
         else:
             logger.info(message)
@@ -164,6 +167,7 @@ class OfflineClient:
             self.message = response
 
     def handle_error(self, error):
+        traceback.print_exc()
         logger.error(error)
 
     def callback(self, data):

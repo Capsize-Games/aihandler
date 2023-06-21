@@ -1,15 +1,17 @@
 from aihandler.logger import logger
-from compel import Compel
+from compel import Compel, DiffusersTextualInversionManager
 
 
 class CompelMixin:
     @property
     def compel_proc(self):
         if not self._compel_proc:
+            textual_inversion_manager = DiffusersTextualInversionManager(self.pipe)
             self._compel_proc = Compel(
                 tokenizer=self.pipe.tokenizer,
                 text_encoder=self.pipe.text_encoder,
-                truncate_long_prompts=False
+                truncate_long_prompts=False,
+                textual_inversion_manager=textual_inversion_manager
             )
         return self._compel_proc
 

@@ -1,28 +1,33 @@
 import traceback
 from aihandler.logger import logger
 from aihandler.settings import AVAILABLE_SCHEDULERS_BY_ACTION
+from aihandler.settings import DPM_PP_2M_K
 
 
 class SchedulerMixin:
     scheduler_name: str = "Euler a"
     schedulers: dict = {
-        "DDIM": "DDIMScheduler",
-        "DDIM Inverse": "DDIMInverseScheduler",
-        "DDPM": "DDPMScheduler",
-        "DEIS": "DEISMultistepScheduler",
-        "DPM Discrete": "KDPM2DiscreteScheduler",
-        "DPM Discrete a": "KDPM2AncestralDiscreteScheduler",
         "Euler a": "EulerAncestralDiscreteScheduler",
         "Euler": "EulerDiscreteScheduler",
-        "Heun": "HeunDiscreteScheduler",
-        "IPNM": "IPNDMScheduler",
         "LMS": "LMSDiscreteScheduler",
-        "Multistep DPM": "DPMSolverMultistepScheduler",
+        "Heun": "HeunDiscreteScheduler",
+        "DPM2": "DPMSolverSinglestepScheduler",
+        "DPM++ 2M": "DPMSolverMultistepScheduler",
+        "DPM2 Karras": "KDPM2DiscreteScheduler",
+        "DPM2 a Karras": "KDPM2AncestralDiscreteScheduler",
+        "DPM++ 2M Karras": "DPMSolverMultistepScheduler",
+        "DPM++ 2M SDE Karras": "DPMSolverMultistepScheduler",
+        "DDIM": "DDIMScheduler",
+        "UniPC": "UniPCMultistepScheduler",
+        "DDPM": "DDPMScheduler",
+        "DEIS": "DEISMultistepScheduler",
+        "DPM 2M SDE Karras": "DPMSolverMultistepScheduler",
         "PNDM": "PNDMScheduler",
-        "DPM singlestep": "DPMSolverSinglestepScheduler",
+
+        "DDIM Inverse": "DDIMInverseScheduler",
+        "IPNM": "IPNDMScheduler",
         "RePaint": "RePaintScheduler",
         "Karras Variance exploding": "KarrasVeScheduler",
-        "UniPC": "UniPCMultistepScheduler",
         "VE-SDE": "ScoreSdeVeScheduler",
         "VP-SDE": "ScoreSdeVpScheduler",
         "VQ Diffusion": " VQDiffusionScheduler",
@@ -31,6 +36,19 @@ class SchedulerMixin:
     do_change_scheduler = False
     _scheduler = None
     current_scheduler_name = None
+
+    @property
+    def scheduler_section(self):
+        if self.use_kandinsky:
+            return f"kandinsky_{self.action}"
+        return self.action
+
+    def clear_scheduler(self):
+        # self.scheduler_name = ""
+        # self.do_change_scheduler = True
+        # self._scheduler = None
+        # self.current_scheduler_name = None
+        pass
 
     def load_scheduler(self, force_scheduler_name=None, config=None):
         import diffusers
@@ -47,26 +65,39 @@ class SchedulerMixin:
 
         self.current_scheduler_name = force_scheduler_name if force_scheduler_name else self.options.get(f"{self.action}_scheduler")
         scheduler_name = force_scheduler_name if force_scheduler_name else self.scheduler_name
-        if not force_scheduler_name and scheduler_name not in AVAILABLE_SCHEDULERS_BY_ACTION[self.action]:
-            scheduler_name = AVAILABLE_SCHEDULERS_BY_ACTION[self.action][0]
+        if not force_scheduler_name and scheduler_name not in AVAILABLE_SCHEDULERS_BY_ACTION[self.scheduler_section]:
+            scheduler_name = AVAILABLE_SCHEDULERS_BY_ACTION[self.scheduler_section][0]
         scheduler_class_name = self.schedulers[scheduler_name]
         scheduler_class = getattr(diffusers, scheduler_class_name)
         kwargs = {
             "subfolder": "scheduler"
         }
-        # check if self.scheduler_name contains ++
-        if scheduler_name.startswith("DPM"):
-            kwargs["lower_order_final"] = self.steps < 15
-            if scheduler_name.find("++") != -1:
-                kwargs["algorithm_type"] = "dpmsolver++"
-            else:
-                kwargs["algorithm_type"] = "dpmsolver"
         if self.current_model_branch:
             kwargs["variant"] = self.current_model_branch
-        logger.info(f"Loading scheduler {self.scheduler_name} with kwargs {kwargs}")
+
         if config:
+            config = dict(config)
+            if scheduler_name == DPM_PP_2M_K:
+                config["use_karras_sigmas"] = True
+            if scheduler_name == "DPM++ 2M SDE Karras":
+                config["algorithm_type"] = "sde-dpmsolver++"
+            elif scheduler_name == "DPM 2M SDE Karras":
+                config["algorithm_type"] = "sde-dpmsolver"
+            elif scheduler_name.startswith("DPM"):
+                if scheduler_name.find("++") != -1:
+                    config["algorithm_type"] = "dpmsolver++"
+                else:
+                    config["algorithm_type"] = "dpmsolver"
+            print(config)
             self._scheduler = scheduler_class.from_config(config)
         else:
+            if scheduler_name == DPM_PP_2M_K:
+                kwargs["use_karras_sigmas"] = True
+            if scheduler_name.startswith("DPM"):
+                if scheduler_name.find("++") != -1:
+                    kwargs["algorithm_type"] = "dpmsolver++"
+                else:
+                    kwargs["algorithm_type"] = "dpmsolver"
             self._scheduler = scheduler_class.from_pretrained(
                 self.model_path,
                 local_files_only=self.local_files_only,
@@ -76,7 +107,7 @@ class SchedulerMixin:
         return self._scheduler
 
     def _change_scheduler(self):
-        if not self.do_change_scheduler:
+        if not self.do_change_scheduler or not self.pipe:
             return
         if self.model_path and self.model_path != "":
             config = self._scheduler.config if self._scheduler else None

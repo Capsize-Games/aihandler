@@ -1,4 +1,6 @@
 import json
+import traceback
+
 from aihandler.logger import logger
 import queue
 import time
@@ -95,6 +97,7 @@ class OfflineClient(QtCore.QObject):
             self.message = response
 
     def handle_error(self, error):
+        traceback.print_exc()
         self.logger.error(error)
 
     def handle_sd_request(self, action, data):

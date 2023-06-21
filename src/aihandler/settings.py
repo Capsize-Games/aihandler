@@ -25,44 +25,53 @@ V1_DIR = os.path.join(SD_DIR, "v1")
 APPLICATION_ID = "runai"
 
 # SCHEDULERS
-DDIM = "DDIM"
-DDIMInverse = "DDIM Inverse"
-DDPM = "DDPM"
-DEIS = "DEIS"
-DPM2_K = "DPM Discrete"
-DPM2_A_K = "DPM Discrete a"
 EULER_ANCESTRAL = "Euler a"
 EULER = "Euler"
-HEUN = "Heun"
-IPNM = "IPNM"
 LMS = "LMS"
-DPMPP_MULTISTEP = "Multistep DPM"
-PNDM = "PNDM"
-DPM_SINGLESTEP = "DPM singlestep"
+HEUN = "Heun"
+DPM2 = "DPM2"
+DPM_PP_2M = "DPM++ 2M"
+DPM2_K = "DPM2 Karras"
+DPM2_A_K = "DPM2 a Karras"
+DPM_PP_2M_K = "DPM++ 2M Karras"
+DPM_PP_2M_SDE_K = "DPM++ 2M SDE Karras"
+DDIM = "DDIM"
+UNIPC = "UniPC"
+DDPM = "DDPM"
+DEIS = "DEIS"
+DPM_2M_SDE_K = "DPM 2M SDE Karras"
+PLMS = "PLMS"
+
+DDIMInverse = "DDIM Inverse"
+IPNM = "IPNM"
 REPAINT = "RePaint"
 KVE = "Karras Variance exploding"
-UNIPC = "UniPC"
 VESDE = "VE-SDE"
 VPSDE = "VP-SDE"
 VQDIFFUSION = "VQ Diffusion"
+
 SCHEDULERS = [
-    DDIM,
-    # DDIMInverse,
-    DDPM,
-    DEIS,
-    DPM2_K,
-    DPM2_A_K,
     EULER_ANCESTRAL,
     EULER,
-    HEUN,
-    # IPNM,
     LMS,
-    DPMPP_MULTISTEP,
-    PNDM,
-    DPM_SINGLESTEP,
+    HEUN,
+    DPM2,
+    DPM_PP_2M,
+    DPM2_K,
+    DPM2_A_K,
+    DPM_PP_2M_K,
+    DPM_PP_2M_SDE_K,
+    DDIM,
+    PLMS,
+    UNIPC,
+    DDPM,
+    DEIS,
+    DPM_2M_SDE_K,
+
+    # DDIMInverse,
+    # IPNM,
     # REPAINT,
     # KVE,
-    UNIPC,
     # VESDE,
     # VPSDE,
     # VQDIFFUSION,
@@ -75,14 +84,41 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
     "vid2vid": SCHEDULERS,
     "outpaint": SCHEDULERS,
     "upscale": [EULER],
-    "superresolution": [DDIM, LMS, PNDM],
+    "superresolution": [DDIM, LMS, PLMS],
     "controlnet": SCHEDULERS,
-    "txt2vid": [DPMPP_MULTISTEP],
+    "txt2vid": [DPM_PP_2M],
+    "kandinsky_txt2img": [
+        EULER_ANCESTRAL,
+        DPM2_A_K,
+        DDPM,
+        DPM_PP_2M,
+        DPM_PP_2M_K,
+        DPM_2M_SDE_K,
+        DPM_PP_2M_SDE_K,
+        DDIM,
+    ],
+    "kandinsky_img2img": [
+        DDPM,
+        DPM_PP_2M,
+        DPM_PP_2M_K,
+        DPM_2M_SDE_K,
+        DPM_PP_2M_SDE_K,
+        DDIM,
+    ],
+    "kandinsky_outpaint": [
+        EULER_ANCESTRAL,
+        DPM2_A_K,
+        DDPM,
+        DPM_PP_2M,
+        DPM_PP_2M_K,
+        DPM_2M_SDE_K,
+        DPM_PP_2M_SDE_K,
+        DDIM,
+    ],
 }
 UPSCALERS = ["None", "Lanczos"]
-
 MODELS = {
-    "generate": {
+    "stablediffusion_generate": {
         "Stable Diffusion V2.1": {
             "path": "stabilityai/stable-diffusion-2-1-base",
             "branch": "fp16",
@@ -129,7 +165,7 @@ MODELS = {
             "branch": "main"
         },
     },
-    "outpaint": {
+    "stablediffusion_outpaint": {
         "Stable Diffusion Inpaint V2": {
             "path": "stabilityai/stable-diffusion-2-inpainting",
             "branch": "fp16",
@@ -139,19 +175,19 @@ MODELS = {
             "branch": "fp16",
         },
     },
-    "depth2img": {
+    "stablediffusion_depth2img": {
         "Stable Diffusion Depth2Img": {
             "path": "stabilityai/stable-diffusion-2-depth",
             "branch": "fp16",
         },
     },
-    "ksuperresolution": {
+    "stablediffusion_ksuperresolution": {
         "Keras Super Resolution": {
             "path": "keras-io/super-resolution",
             "branch": "main",
         },
     },
-    "controlnet": {
+    "stablediffusion_controlnet": {
         "Stable Diffusion V1": {
             "path": "runwayml/stable-diffusion-v1-5",
             "branch": "fp16",
@@ -194,41 +230,53 @@ MODELS = {
             "branch": "main"
         },
     },
-    "superresolution": {
+    "stablediffusion_superresolution": {
         "Stability AI 4x resolution": {
             "path": "stabilityai/stable-diffusion-x4-upscaler",
             "branch": "fp16",
         },
     },
-    "pix2pix": {
+    "stablediffusion_pix2pix": {
         "Instruct pix2pix": {
             "path": "timbrooks/instruct-pix2pix",
             "branch": "fp16",
         },
     },
-    "riffusion": {
+    "stablediffusion_riffusion": {
         "Riffusion": {
             "path": "riffusion/riffusion-model-v1",
             "branch": "main",
         }
     },
-    "vid2vid": {
+    "stablediffusion_vid2vid": {
         "SD Image Variations": {
             "path": "lambdalabs/sd-image-variations-diffusers",
             "branch": "v2.0",
         }
     },
-    "txt2vid":  {
+    "stablediffusion_txt2vid":  {
         "damo-vilab": {
             "path": "damo-vilab/text-to-video-ms-1.7b",
             "branch": "fp16",
         }
     },
-    "upscale": {
+    "stablediffusion_upscale": {
         "sd-x2-latent-upscaler": {
             "path": "stabilityai/sd-x2-latent-upscaler",
             "branch": "fp16",
         }
+    },
+    "kandinsky_generate": {
+        "Kandinsky V2.1": {
+            "path": "kandinsky-community/kandinsky-2-1",
+            "branch": "fp16",
+        },
+    },
+    "kandinsky_outpaint": {
+        "Kandinsky Inpaint V2.1": {
+            "path": "kandinsky-community/kandinsky-2-1-inpaint",
+            "branch": "fp16",
+        },
     },
 }
 TEXT_MODELS = {
@@ -266,7 +314,6 @@ TEXT_MODELS = {
 KERAS_MODELS = {
     "superresolution": "keras-io/super-resolution",
 }
-
 DEFAULT_MODEL = "Stable Diffusion V2"
 DEFAULT_SCHEDULER = SCHEDULERS[0]
 MIN_SEED = 0
