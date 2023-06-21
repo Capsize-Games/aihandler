@@ -46,7 +46,9 @@ DEFAULT_GENERATOR_SETTINGS = {
     "strength": 50,
     "image_guidance_scale": 150,
     "n_samples": 1,
-    "use_kandinsky": False,
+    "do_upscale_full_image": True,
+    "do_upscale_by_active_grid": False,
+    "downscale_amount": 1,
 }
 GENERATOR_TYPES = {
     "prompt": StringVar,
@@ -64,7 +66,9 @@ GENERATOR_TYPES = {
     "strength": DoubleVar,
     "image_guidance_scale": DoubleVar,
     "n_samples": IntVar,
-    "use_kandinsky": BooleanVar,
+    "do_upscale_full_image": BooleanVar,
+    "do_upscale_by_active_grid": BooleanVar,
+    "downscale_amount": IntVar,
 }
 USER = os.environ.get("USER", "")
 default_model_path = os.path.join("/", "home", USER, "stablediffusion")
