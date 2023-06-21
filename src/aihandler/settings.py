@@ -25,23 +25,23 @@ V1_DIR = os.path.join(SD_DIR, "v1")
 APPLICATION_ID = "runai"
 
 # SCHEDULERS
+EULER = "Euler"
+EULER_ANCESTRAL = "Euler a"
 DDIM = "DDIM"
 DDIMInverse = "DDIM Inverse"
-DDPM = "DDPM"
 DEIS = "DEIS"
-DPM2_K = "DPM2 Karras"
-EULER_ANCESTRAL = "Euler a"
-EULER = "Euler"
 HEUN = "Heun"
 IPNM = "IPNM"
 LMS = "LMS"
+PNDM = "PNDM"
+DDPM = "DDPM"
 DPMPP_MULTISTEP = "DPM++ 2M"  # Multistep DPM
 DPMPP_MULTISTEP_K = "DPM++ 2M Karras"  # Multistep DPM
 DPM_MULTISTEP_SDE_K = "DPM 2M SDE Karras"  # Multistep SDE DPM
 DPMPP_MULTISTEP_SDE_K = "DPM++ 2M SDE Karras"  # Multistep SDE DPM
-PNDM = "PNDM"
 DPM2 = "DPM2"
-DPM2_A = "DPM2 a Karras"
+DPM2_K = "DPM2 Karras"
+DPM2_A_K = "DPM2 a Karras"
 REPAINT = "RePaint"
 KVE = "Karras Variance exploding"
 UNIPC = "UniPC"
@@ -54,7 +54,7 @@ SCHEDULERS = [
     LMS,
     HEUN,
     DPM2,
-    DPM2_A,
+    DPM2_A_K,
     # DDIMInverse,
     DDPM,
     DEIS,
@@ -84,9 +84,34 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
     "superresolution": [DDIM, LMS, PNDM],
     "controlnet": SCHEDULERS,
     "txt2vid": [DPMPP_MULTISTEP],
-    "kandinsky_txt2img": SCHEDULERS,
-    "kandinsky_img2img": SCHEDULERS,
-    "kandinsky_outpaint": SCHEDULERS,
+    "kandinsky_txt2img": [
+        EULER_ANCESTRAL,
+        DPM2_A_K,
+        DDPM,
+        DPMPP_MULTISTEP,
+        DPMPP_MULTISTEP_K,
+        DPM_MULTISTEP_SDE_K,
+        DPMPP_MULTISTEP_SDE_K,
+        DDIM,
+    ],
+    "kandinsky_img2img": [
+        DDPM,
+        DPMPP_MULTISTEP,
+        DPMPP_MULTISTEP_K,
+        DPM_MULTISTEP_SDE_K,
+        DPMPP_MULTISTEP_SDE_K,
+        DDIM,
+    ],
+    "kandinsky_outpaint": [
+        EULER_ANCESTRAL,
+        DPM2_A_K,
+        DDPM,
+        DPMPP_MULTISTEP,
+        DPMPP_MULTISTEP_K,
+        DPM_MULTISTEP_SDE_K,
+        DPMPP_MULTISTEP_SDE_K,
+        DDIM,
+    ],
 }
 UPSCALERS = ["None", "Lanczos"]
 MODELS = {
