@@ -36,6 +36,12 @@ class SchedulerMixin:
     _scheduler = None
     current_scheduler_name = None
 
+    @property
+    def scheduler_section(self):
+        if self.use_kandinsky:
+            return f"kandinsky_{self.action}"
+        return self.action
+
     def clear_scheduler(self):
         # self.scheduler_name = ""
         # self.do_change_scheduler = True
@@ -58,8 +64,8 @@ class SchedulerMixin:
 
         self.current_scheduler_name = force_scheduler_name if force_scheduler_name else self.options.get(f"{self.action}_scheduler")
         scheduler_name = force_scheduler_name if force_scheduler_name else self.scheduler_name
-        if not force_scheduler_name and scheduler_name not in AVAILABLE_SCHEDULERS_BY_ACTION[self.action]:
-            scheduler_name = AVAILABLE_SCHEDULERS_BY_ACTION[self.action][0]
+        if not force_scheduler_name and scheduler_name not in AVAILABLE_SCHEDULERS_BY_ACTION[self.scheduler_section]:
+            scheduler_name = AVAILABLE_SCHEDULERS_BY_ACTION[self.scheduler_section][0]
         scheduler_class_name = self.schedulers[scheduler_name]
         scheduler_class = getattr(diffusers, scheduler_class_name)
         kwargs = {
