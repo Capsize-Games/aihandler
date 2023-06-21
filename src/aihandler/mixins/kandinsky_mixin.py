@@ -41,8 +41,6 @@ class KandinskyMixin:
             # invert mask image
             mask_image = mask_image.point(lambda x: 255 - x)
             args["mask_image"] = mask_image
-            print("saving mask")
-            mask_image.save("mask.png")
 
         print(args)
         return self.pipe(**args)
