@@ -42,7 +42,6 @@ class KandinskyMixin:
             mask_image = mask_image.point(lambda x: 255 - x)
             args["mask_image"] = mask_image
 
-        print(args)
         return self.pipe(**args)
 
     def clear_kandinsky(self):
