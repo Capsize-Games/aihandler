@@ -25,50 +25,53 @@ V1_DIR = os.path.join(SD_DIR, "v1")
 APPLICATION_ID = "runai"
 
 # SCHEDULERS
-EULER = "Euler"
 EULER_ANCESTRAL = "Euler a"
-DDIM = "DDIM"
-DDIMInverse = "DDIM Inverse"
-DEIS = "DEIS"
-HEUN = "Heun"
-IPNM = "IPNM"
+EULER = "Euler"
 LMS = "LMS"
-PNDM = "PNDM"
-DDPM = "DDPM"
-DPMPP_MULTISTEP = "DPM++ 2M"  # Multistep DPM
-DPMPP_MULTISTEP_K = "DPM++ 2M Karras"  # Multistep DPM
-DPM_MULTISTEP_SDE_K = "DPM 2M SDE Karras"  # Multistep SDE DPM
-DPMPP_MULTISTEP_SDE_K = "DPM++ 2M SDE Karras"  # Multistep SDE DPM
+HEUN = "Heun"
 DPM2 = "DPM2"
+DPM_PP_2M = "DPM++ 2M"
 DPM2_K = "DPM2 Karras"
 DPM2_A_K = "DPM2 a Karras"
+DPM_PP_2M_K = "DPM++ 2M Karras"
+DPM_PP_2M_SDE_K = "DPM++ 2M SDE Karras"
+DDIM = "DDIM"
+UNIPC = "UniPC"
+DDPM = "DDPM"
+DEIS = "DEIS"
+DPM_2M_SDE_K = "DPM 2M SDE Karras"
+PLMS = "PLMS"
+
+DDIMInverse = "DDIM Inverse"
+IPNM = "IPNM"
 REPAINT = "RePaint"
 KVE = "Karras Variance exploding"
-UNIPC = "UniPC"
 VESDE = "VE-SDE"
 VPSDE = "VP-SDE"
 VQDIFFUSION = "VQ Diffusion"
+
 SCHEDULERS = [
     EULER_ANCESTRAL,
     EULER,
     LMS,
     HEUN,
     DPM2,
+    DPM_PP_2M,
+    DPM2_K,
     DPM2_A_K,
-    # DDIMInverse,
+    DPM_PP_2M_K,
+    DPM_PP_2M_SDE_K,
+    DDIM,
+    PLMS,
+    UNIPC,
     DDPM,
     DEIS,
-    DPM2_K,
+    DPM_2M_SDE_K,
+
+    # DDIMInverse,
     # IPNM,
-    DPMPP_MULTISTEP,
-    DPMPP_MULTISTEP_K,
-    DPM_MULTISTEP_SDE_K,
-    DPMPP_MULTISTEP_SDE_K,
-    PNDM,
     # REPAINT,
     # KVE,
-    DDIM,
-    UNIPC,
     # VESDE,
     # VPSDE,
     # VQDIFFUSION,
@@ -81,35 +84,35 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
     "vid2vid": SCHEDULERS,
     "outpaint": SCHEDULERS,
     "upscale": [EULER],
-    "superresolution": [DDIM, LMS, PNDM],
+    "superresolution": [DDIM, LMS, PLMS],
     "controlnet": SCHEDULERS,
-    "txt2vid": [DPMPP_MULTISTEP],
+    "txt2vid": [DPM_PP_2M],
     "kandinsky_txt2img": [
         EULER_ANCESTRAL,
         DPM2_A_K,
         DDPM,
-        DPMPP_MULTISTEP,
-        DPMPP_MULTISTEP_K,
-        DPM_MULTISTEP_SDE_K,
-        DPMPP_MULTISTEP_SDE_K,
+        DPM_PP_2M,
+        DPM_PP_2M_K,
+        DPM_2M_SDE_K,
+        DPM_PP_2M_SDE_K,
         DDIM,
     ],
     "kandinsky_img2img": [
         DDPM,
-        DPMPP_MULTISTEP,
-        DPMPP_MULTISTEP_K,
-        DPM_MULTISTEP_SDE_K,
-        DPMPP_MULTISTEP_SDE_K,
+        DPM_PP_2M,
+        DPM_PP_2M_K,
+        DPM_2M_SDE_K,
+        DPM_PP_2M_SDE_K,
         DDIM,
     ],
     "kandinsky_outpaint": [
         EULER_ANCESTRAL,
         DPM2_A_K,
         DDPM,
-        DPMPP_MULTISTEP,
-        DPMPP_MULTISTEP_K,
-        DPM_MULTISTEP_SDE_K,
-        DPMPP_MULTISTEP_SDE_K,
+        DPM_PP_2M,
+        DPM_PP_2M_K,
+        DPM_2M_SDE_K,
+        DPM_PP_2M_SDE_K,
         DDIM,
     ],
 }
