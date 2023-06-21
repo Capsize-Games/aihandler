@@ -88,7 +88,6 @@ class SchedulerMixin:
                     config["algorithm_type"] = "dpmsolver++"
                 else:
                     config["algorithm_type"] = "dpmsolver"
-            print(config)
             self._scheduler = scheduler_class.from_config(config)
         else:
             if scheduler_name == DPM_PP_2M_K:
