@@ -221,7 +221,7 @@ class SDRunner(
 
     @property
     def use_compel(self):
-        return True
+        return False if self.is_txt2vid else True
 
     @property
     def use_xformers(self):
@@ -637,6 +637,8 @@ class SDRunner(
             args["generator"] = torch.manual_seed(self.seed)
         elif self.is_txt2vid:
             args["num_frames"] = self.batch_size
+            args["prompt"] = self.prompt
+            args["negative_prompt"] = self.negative_prompt
         elif not self.use_kandinsky:
             if self.use_compel:
                 args["prompt_embeds"] = self.prompt_embeds
