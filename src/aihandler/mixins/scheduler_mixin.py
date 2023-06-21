@@ -1,7 +1,7 @@
 import traceback
 from aihandler.logger import logger
 from aihandler.settings import AVAILABLE_SCHEDULERS_BY_ACTION
-from aihandler.settings import DPMPP_MULTISTEP, DPMPP_MULTISTEP_K
+from aihandler.settings import DPM_PP_2M_K
 
 
 class SchedulerMixin:
@@ -77,7 +77,7 @@ class SchedulerMixin:
 
         if config:
             config = dict(config)
-            if scheduler_name == DPMPP_MULTISTEP_K:
+            if scheduler_name == DPM_PP_2M_K:
                 config["use_karras_sigmas"] = True
             if scheduler_name == "DPM++ 2M SDE Karras":
                 config["algorithm_type"] = "sde-dpmsolver++"
@@ -91,7 +91,7 @@ class SchedulerMixin:
             print(config)
             self._scheduler = scheduler_class.from_config(config)
         else:
-            if scheduler_name == DPMPP_MULTISTEP_K:
+            if scheduler_name == DPM_PP_2M_K:
                 kwargs["use_karras_sigmas"] = True
             if scheduler_name.startswith("DPM"):
                 if scheduler_name.find("++") != -1:
