@@ -19,7 +19,6 @@ DEFAULT_GRID_SETTINGS = {
 }
 DEFAULT_MEMORY_SETTINGS = {
     "use_accelerated_transformers": True,
-    "use_xformers": True,
     "use_attention_slicing": False,
     "use_last_channels": False,
     "use_enable_sequential_cpu_offload": False,
@@ -200,7 +199,6 @@ class RunAISettings(BaseSettings):
         self.use_tf32 = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_tf32"])
         self.use_cudnn_benchmark = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_cudnn_benchmark"])
         self.use_enable_vae_slicing = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_enable_vae_slicing"])
-        self.use_xformers = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_xformers"])
         self.use_tiled_vae = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_tiled_vae"])
         self.enable_model_cpu_offload = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["enable_model_cpu_offload"])
         self.use_accelerated_transformers = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_accelerated_transformers"])

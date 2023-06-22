@@ -6,7 +6,6 @@ install_requires = [
     "ninja==1.11.1",
     "JIT==0.2.7",
     "tqdm==4.65.0",
-    "xformers==0.0.19",
     "omegaconf==2.3.0",
     "accelerate==0.20.3",
     "controlnet_aux==0.0.3",

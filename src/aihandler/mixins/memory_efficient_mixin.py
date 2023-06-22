@@ -12,14 +12,12 @@ class MemoryEfficientMixin:
     use_attention_slicing: bool = False
     use_tf32: bool = False
     use_enable_vae_slicing: bool = False
-    use_xformers: bool = False
     use_tiled_vae: bool = False
     _use_last_channels = True
     _use_enable_sequential_cpu_offload = True
     _use_attention_slicing = True
     _use_tf32 = True
     _use_enable_vae_slicing = True
-    _use_xformers = False
     _use_tiled_vae = False
 
     @property
@@ -63,18 +61,8 @@ class MemoryEfficientMixin:
         self._enable_vae_slicing = value
 
     @property
-    def use_xformers(self):
-        if not self.cuda_is_available:
-            return False
-        return self._use_xformers
-
-    @use_xformers.setter
-    def use_xformers(self, value):
-        self._use_xformers = value
-
-    @property
     def use_accelerated_transformers(self):
-        return self._use_accelerated_transformers
+        return self.cuda_is_available and self._use_accelerated_transformers
 
     @use_accelerated_transformers.setter
     def use_accelerated_transformers(self, value):
@@ -135,19 +123,9 @@ class MemoryEfficientMixin:
             except AttributeError:
                 logger.warning("Tiled vae not supported for this model")
 
-    def apply_xformers(self):
-        if self.use_xformers:
-            logger.info("Applying xformers")
-            from xformers.ops import MemoryEfficientAttentionFlashAttentionOp
-            self.pipe.enable_xformers_memory_efficient_attention()
-        elif not self.use_kandinsky:
-            logger.info("Disabling xformers")
-            self.pipe.disable_xformers_memory_efficient_attention()
-
     def apply_accelerated_transformers(self):
-        if self.use_accelerated_transformers:
-            from diffusers.models.attention_processor import AttnProcessor2_0
-            self.pipe.unet.set_attn_processor(AttnProcessor2_0())
+        if not self.use_accelerated_transformers:
+            self.pipe.unet.set_default_attn_processor()
 
     def save_pipeline(self):
         if self.use_torch_compile:
@@ -216,6 +194,5 @@ class MemoryEfficientMixin:
         self.pipe = self.move_pipe_to_cuda(self.pipe)
         self.apply_attention_slicing()
         self.apply_tiled_vae()
-        self.apply_xformers()
         self.apply_accelerated_transformers()
         self.apply_torch_compile()

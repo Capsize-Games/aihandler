@@ -51,7 +51,6 @@ class TexttovideoMixin:
                     "use_attention_slicing": self.use_attention_slicing,
                     "use_tf32": self.use_tf32,
                     "use_enable_vae_slicing": self.use_enable_vae_slicing,
-                    "use_xformers": self.use_xformers,
                     "use_accelerated_transformers": self.use_accelerated_transformers,
                     "use_torch_compile": self.use_torch_compile,
                     "use_tiled_vae": self.use_tiled_vae,
