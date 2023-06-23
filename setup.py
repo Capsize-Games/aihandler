@@ -6,7 +6,6 @@ install_requires = [
     "ninja==1.11.1",
     "JIT==0.2.7",
     "tqdm==4.65.0",
-    "xformers==0.0.19",
     "omegaconf==2.3.0",
     "accelerate==0.20.3",
     "controlnet_aux==0.0.3",
@@ -42,7 +41,7 @@ install_requires = [
 
 setup(
     name="aihandler",
-    version="1.16.0",
+    version="1.16.1",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),

@@ -19,7 +19,6 @@ DEFAULT_GRID_SETTINGS = {
 }
 DEFAULT_MEMORY_SETTINGS = {
     "use_accelerated_transformers": True,
-    "use_xformers": True,
     "use_attention_slicing": False,
     "use_last_channels": False,
     "use_enable_sequential_cpu_offload": False,
@@ -200,7 +199,6 @@ class RunAISettings(BaseSettings):
         self.use_tf32 = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_tf32"])
         self.use_cudnn_benchmark = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_cudnn_benchmark"])
         self.use_enable_vae_slicing = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_enable_vae_slicing"])
-        self.use_xformers = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_xformers"])
         self.use_tiled_vae = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_tiled_vae"])
         self.enable_model_cpu_offload = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["enable_model_cpu_offload"])
         self.use_accelerated_transformers = BooleanVar(app, DEFAULT_MEMORY_SETTINGS["use_accelerated_transformers"])
@@ -219,6 +217,7 @@ class RunAISettings(BaseSettings):
         self.pix2pix_model_path = StringVar(app)
         self.outpaint_model_path = StringVar(app)
         self.upscale_model_path = StringVar(app)
+        self.unet_model_path = StringVar(app)
 
         self.mask_brush_size = IntVar(app, 10)
 
@@ -273,6 +272,8 @@ class RunAISettings(BaseSettings):
         self.latest_version_check = BooleanVar(app, True)
 
         self.show_active_image_area = BooleanVar(app, False)
+
+        self.use_interpolation = BooleanVar(app, False)
 
     def reset_settings_to_default(self):
         # pasting / generating
@@ -334,6 +335,8 @@ class RunAISettings(BaseSettings):
         self.export_metadata.set(False)
         self.import_metadata.set(False)
         self.show_active_image_area.set(False)
+
+        self.app.use_interpolation = False
 
 
 class PromptSettings(BaseSettings):

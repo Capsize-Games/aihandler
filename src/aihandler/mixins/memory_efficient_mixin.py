@@ -8,93 +8,39 @@ logger.set_level(logger.DEBUG)
 
 
 class MemoryEfficientMixin:
-    enable_model_cpu_offload: bool = False
-    use_attention_slicing: bool = False
-    use_tf32: bool = False
-    use_enable_vae_slicing: bool = False
-    use_xformers: bool = False
-    use_tiled_vae: bool = False
-    _use_last_channels = True
-    _use_enable_sequential_cpu_offload = True
-    _use_attention_slicing = True
-    _use_tf32 = True
-    _use_enable_vae_slicing = True
-    _use_xformers = False
-    _use_tiled_vae = False
+    torch_compile_applied: bool = False
 
     @property
     def use_last_channels(self):
-        return self._use_last_channels and not self.is_txt2vid
-
-    @use_last_channels.setter
-    def use_last_channels(self, value):
-        self._use_last_channels = value
+        return self.settings_manager.settings.use_last_channels.get() and not self.is_txt2vid
 
     @property
     def use_enable_sequential_cpu_offload(self):
-        return self._use_enable_sequential_cpu_offload
-
-    @use_enable_sequential_cpu_offload.setter
-    def use_enable_sequential_cpu_offload(self, value):
-        self._use_enable_sequential_cpu_offload = value
+        return self.settings_manager.settings.use_enable_sequential_cpu_offload.get()
 
     @property
     def use_attention_slicing(self):
-        return self._use_attention_slicing
-
-    @use_attention_slicing.setter
-    def use_attention_slicing(self, value):
-        self._use_attention_slicing = value
+        return self.settings_manager.settings.use_attention_slicing.get()
 
     @property
     def use_tf32(self):
-        return self._use_tf32
-
-    @use_tf32.setter
-    def use_tf32(self, value):
-        self._use_tf32 = value
+        return self.settings_manager.settings.use_tf32.get()
 
     @property
     def enable_vae_slicing(self):
-        return self._enable_vae_slicing
-
-    @enable_vae_slicing.setter
-    def enable_vae_slicing(self, value):
-        self._enable_vae_slicing = value
-
-    @property
-    def use_xformers(self):
-        if not self.cuda_is_available:
-            return False
-        return self._use_xformers
-
-    @use_xformers.setter
-    def use_xformers(self, value):
-        self._use_xformers = value
+        return self.settings_manager.settings.use_enable_vae_slicing.get()
 
     @property
     def use_accelerated_transformers(self):
-        return self._use_accelerated_transformers
-
-    @use_accelerated_transformers.setter
-    def use_accelerated_transformers(self, value):
-        self._use_accelerated_transformers = value
+        return self.cuda_is_available and self.settings_manager.settings.use_accelerated_transformers.get()
 
     @property
     def use_torch_compile(self):
-        return self._use_torch_compile
-
-    @use_torch_compile.setter
-    def use_torch_compile(self, value):
-        self._use_torch_compile = value
+        return self.settings_manager.settings.use_torch_compile.get()
 
     @property
     def use_tiled_vae(self):
-        return self._use_tiled_vae
-
-    @use_tiled_vae.setter
-    def use_tiled_vae(self, value):
-        self._use_tiled_vae = value
+        return self.settings_manager.settings.use_tiled_vae.get()
 
     def apply_last_channels(self):
         if self.use_kandinsky:
@@ -120,7 +66,7 @@ class MemoryEfficientMixin:
     def apply_attention_slicing(self):
         if self.use_attention_slicing:
             logger.info("Enabling attention slicing")
-            self.pipe.enable_attention_slicing()
+            self.pipe.enable_attention_slicing(1)
         else:
             logger.info("Disabling attention slicing")
             self.pipe.disable_attention_slicing()
@@ -135,26 +81,28 @@ class MemoryEfficientMixin:
             except AttributeError:
                 logger.warning("Tiled vae not supported for this model")
 
-    def apply_xformers(self):
-        if self.use_xformers:
-            logger.info("Applying xformers")
-            from xformers.ops import MemoryEfficientAttentionFlashAttentionOp
-            self.pipe.enable_xformers_memory_efficient_attention()
-        elif not self.use_kandinsky:
-            logger.info("Disabling xformers")
-            self.pipe.disable_xformers_memory_efficient_attention()
-
     def apply_accelerated_transformers(self):
-        if self.use_accelerated_transformers:
+        if self.use_kandinsky:
+            return
+        if not (self.cuda_is_available and self.settings_manager.settings.use_accelerated_transformers.get()):
+            logger.info("Disabling accelerated transformers")
+            self.pipe.unet.set_default_attn_processor()
+        else:
+            logger.info("Enabling accelerated transformers")
             from diffusers.models.attention_processor import AttnProcessor2_0
             self.pipe.unet.set_attn_processor(AttnProcessor2_0())
 
-    def save_pipeline(self):
-        if self.use_torch_compile:
-            file_path = os.path.join(os.path.join(self.model_base_path, self.model_path, "compiled"))
-            if not os.path.exists(file_path):
-                os.makedirs(file_path)
-            torch.save(self.pipe.unet.state_dict(), os.path.join(file_path, "unet.pt"))
+    def save_unet(self, file_path, file_name):
+        logger.info(f"Saving compiled torch model {file_name}")
+        unet_file = os.path.join(file_path, file_name)
+        if not os.path.exists(file_path):
+            os.makedirs(file_path)
+        torch.save(self.pipe.unet.state_dict(), unet_file)
+
+    def load_unet(self, file_path, file_name):
+        logger.info(f"Loading compiled torch model {file_name}")
+        unet_file = os.path.join(file_path, file_name)
+        self.pipe.unet.state_dict = torch.load(unet_file, map_location="cuda")
 
     def apply_torch_compile(self):
         """
@@ -163,15 +111,24 @@ class MemoryEfficientMixin:
             - Fails with the compiled version of AI Runner
         Because of this, we are disabling it until a better solution is found.
 
-        if self.use_torch_compile:
-            logger.debug("Compiling torch model")
+        if not self.use_torch_compile or self.torch_compile_applied:
+            return
+        unet_path = self.unet_model_path
+        if unet_path is None or unet_path == "":
+            unet_path = os.path.join(self.model_base_path, "compiled_unet")
+        file_path = os.path.join(os.path.join(unet_path, self.model_path))
+        model_name = self.options.get(f"{self.action}_model", None)
+        file_name = f"{model_name}.pt"
+        if os.path.exists(os.path.join(file_path, file_name)):
+            self.load_unet(file_path, file_name)
+            self.pipe.unet.to(memory_format=torch.channels_last)
+        else:
+            logger.info(f"Compiling torch model {model_name}")
+            self.pipe.unet.to(memory_format=torch.channels_last)
             self.pipe.unet = torch.compile(self.pipe.unet)
-        load unet state_dict from disc
-        file_path = os.path.join(os.path.join(self.model_base_path, self.model_path, "compiled"))
-        if os.path.exists(file_path):
-            logger.debug("Loading compiled torch model")
-            state_dict = torch.load(os.path.join(file_path, "unet.pt"), map_location="cpu")
-            self.pipe.unet.state_dict = state_dict
+            self.pipe(prompt=self.prompt)
+            self.save_unet(file_path, file_name)
+        self.torch_compile_applied = True
         """
         return
 
@@ -216,6 +173,5 @@ class MemoryEfficientMixin:
         self.pipe = self.move_pipe_to_cuda(self.pipe)
         self.apply_attention_slicing()
         self.apply_tiled_vae()
-        self.apply_xformers()
         self.apply_accelerated_transformers()
         self.apply_torch_compile()

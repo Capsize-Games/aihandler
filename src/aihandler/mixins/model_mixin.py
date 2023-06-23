@@ -118,6 +118,7 @@ class ModelMixin:
 
     def _load_model(self):
         logger.info("Loading model...")
+        self.torch_compile_applied = False
         self.lora_loaded = False
         self.embeds_loaded = False
         if self.is_ckpt_model or self.is_safetensors:

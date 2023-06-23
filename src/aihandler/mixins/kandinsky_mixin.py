@@ -1,5 +1,4 @@
 import torch
-
 from aihandler.logger import logger
 
 
@@ -54,6 +53,13 @@ class KandinskyMixin:
 
     def get_kandinsky_image_emebds(self):
         generator = torch.Generator(device=self.device).manual_seed(self.seed)
+        if self.use_interpolation:
+            interpolation_prompt = []
+            weights = []
+            for index, item in enumerate(self.interpolation_data):
+                interpolation_prompt.append(item[item["type"]])
+                weights.append(item["weight"])
+            return self.pipe_prior.interpolate(interpolation_prompt, weights).to_tuple()
         return self.pipe_prior(
             prompt=self.prompt,
             negative_prompt=self.negative_prompt,
@@ -90,5 +96,5 @@ class KandinskyMixin:
             )
         # self._change_scheduler()
         logger.info(f"Load safety checker")
-        self.load_safety_checker(self.action)
+        #self.load_safety_checker(self.action)
         self.apply_memory_efficient_settings()

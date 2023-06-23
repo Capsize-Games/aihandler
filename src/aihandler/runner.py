@@ -221,11 +221,7 @@ class SDRunner(
 
     @property
     def use_compel(self):
-        return False if self.is_txt2vid else True
-
-    @property
-    def use_xformers(self):
-        return self.options.get("use_xformers", False) == True
+        return not self.use_enable_sequential_cpu_offload and not self.is_txt2vid
 
     @property
     def use_tiled_vae(self):
@@ -240,8 +236,8 @@ class SDRunner(
         return self.options.get("use_accelerated_transformers", False) == True
 
     @property
-    def use_torch_compiler(self):
-        return self.options.get("use_torch_compiler", False) == True
+    def use_torch_compile(self):
+        return self.options.get("use_torch_compile", False) == True
 
     @property
     def controlnet_type(self):
@@ -250,6 +246,10 @@ class SDRunner(
     @property
     def model_base_path(self):
         return self.options.get("model_base_path", None)
+
+    @property
+    def unet_model_path(self):
+        return self.options.get("unet_model_path", None)
 
     @property
     def model(self):
@@ -303,6 +303,14 @@ class SDRunner(
     @property
     def is_superresolution(self):
         return self.action == "superresolution"
+
+    @property
+    def use_interpolation(self):
+        return self.options.get("use_interpolation", False)
+
+    @property
+    def interpolation_data(self):
+        return self.options.get("interpolation_data", None)
 
     @property
     def current_model(self):
@@ -457,7 +465,6 @@ class SDRunner(
     @property
     def data_type(self):
         data_type = torch.half if self.cuda_is_available else torch.float
-        data_type = torch.half if self.use_xformers else data_type
         return data_type
 
     @property
@@ -500,8 +507,7 @@ class SDRunner(
         # do model reload checks here
         if (
             self.is_pipe_loaded and (  # memory options change
-                self.use_enable_sequential_cpu_offload != options.get("use_enable_sequential_cpu_offload", True) or
-                self.use_xformers != options.get("use_xformers", True)
+                self.use_enable_sequential_cpu_offload != options.get("use_enable_sequential_cpu_offload", True)
             )
         ) or (  # model change
             self.model is not None
@@ -555,14 +561,7 @@ class SDRunner(
             output = self.call_pipe(**kwargs)
         except Exception as e:
             error_message = str(e)
-            if "`flshattF` is not supported because" in str(e):
-                # try again
-                logger.info("Disabling xformers and trying again")
-                self.pipe.enable_xformers_memory_efficient_attention(attention_op=None)
-                self.pipe.vae.enable_xformers_memory_efficient_attention(attention_op=None)
-                # redo the sample with xformers enabled
-                return self.do_sample(**kwargs)
-            elif "Scheduler.step() got an unexpected keyword argument" in str(e):
+            if "Scheduler.step() got an unexpected keyword argument" in str(e):
                 error_message = "Invalid scheduler"
                 self.clear_scheduler()
             self.log_error(error_message)
@@ -702,15 +701,6 @@ class SDRunner(
         except Exception as e:
             if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
                 self.log_error(self.cuda_error_message)
-            elif "`flshattF` is not supported because" in str(e):
-                # try again
-                logger.info("Disabling xformers and trying again")
-                self.pipe.enable_xformers_memory_efficient_attention(
-                    attention_op=None)
-                self.pipe.vae.enable_xformers_memory_efficient_attention(
-                    attention_op=None)
-                # redo the sample with xformers enabled
-                return self.sample_diffusers_model(data)
             else:
                 self.log_error(e, "Something went wrong while generating image")
 
@@ -775,6 +765,7 @@ class SDRunner(
         self._change_scheduler()
 
         if not self.use_kandinsky:
+            self.set_message(f"Applying memory settings...")
             self.apply_memory_efficient_settings()
         if self.is_txt2vid or self.is_upscale:
             total_to_generate = 1
