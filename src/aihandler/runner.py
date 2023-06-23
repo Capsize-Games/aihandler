@@ -236,8 +236,8 @@ class SDRunner(
         return self.options.get("use_accelerated_transformers", False) == True
 
     @property
-    def use_torch_compiler(self):
-        return self.options.get("use_torch_compiler", False) == True
+    def use_torch_compile(self):
+        return self.options.get("use_torch_compile", False) == True
 
     @property
     def controlnet_type(self):
@@ -246,6 +246,10 @@ class SDRunner(
     @property
     def model_base_path(self):
         return self.options.get("model_base_path", None)
+
+    @property
+    def unet_model_path(self):
+        return self.options.get("unet_model_path", None)
 
     @property
     def model(self):
@@ -299,6 +303,14 @@ class SDRunner(
     @property
     def is_superresolution(self):
         return self.action == "superresolution"
+
+    @property
+    def use_interpolation(self):
+        return self.options.get("use_interpolation", False)
+
+    @property
+    def interpolation_data(self):
+        return self.options.get("interpolation_data", None)
 
     @property
     def current_model(self):
@@ -753,6 +765,7 @@ class SDRunner(
         self._change_scheduler()
 
         if not self.use_kandinsky:
+            self.set_message(f"Applying memory settings...")
             self.apply_memory_efficient_settings()
         if self.is_txt2vid or self.is_upscale:
             total_to_generate = 1

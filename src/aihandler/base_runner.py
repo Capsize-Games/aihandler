@@ -1,4 +1,4 @@
-import os
+import traceback
 from PyQt6.QtCore import QObject, pyqtSignal
 from aihandler.logger import logger
 from aihandler.qtvar import TQDMVar, ImageVar
@@ -21,7 +21,7 @@ class BaseRunner(QObject):
         logger.set_level(LOG_LEVEL)
         self.app = kwargs.get("app", None)
         # self.load_extensions = kwargs.get("load_extensions", True)  TODO: extensions
-        self.settings_manager = kwargs.get("settings_manager", None)
+        self.settings_manager = kwargs.get("settings_manager", SettingsManager())
         self._tqdm_var: TQDMVar = kwargs.get("tqdm_var", None)
         self._tqdm_callback = kwargs.get("tqdm_callback", None)
         self._image_var: ImageVar = kwargs.get("image_var", None)
@@ -95,6 +95,7 @@ class BaseRunner(QObject):
         message = str(error)
         if "got an unexpected keyword argument 'image'" in message and self.action in ["outpaint", "pix2pix", "depth2img"]:
             message = f"This model does not support {self.action}"
+        traceback.print_exc()
         logger.error(error)
         if self._error_handler:
             self._error_handler(message)
