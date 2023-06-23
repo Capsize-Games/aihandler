@@ -248,10 +248,6 @@ class SDRunner(
         return self.options.get("model_base_path", None)
 
     @property
-    def unet_model_path(self):
-        return self.options.get("unet_model_path", None)
-
-    @property
     def model(self):
         return self.options.get(f"{self.action}_model", None)
 
