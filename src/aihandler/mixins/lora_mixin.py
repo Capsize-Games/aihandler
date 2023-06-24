@@ -10,6 +10,11 @@ from safetensors.torch import load_file
 
 
 class LoraMixin:
+    def add_lora_to_pipe(self):
+        #if not self.lora_loaded:
+        self.loaded_lora = []
+        self.apply_lora()
+
     def apply_lora(self):
         model_base_path = self.settings_manager.settings.model_base_path.get()
         lora_path = self.settings_manager.settings.lora_path.get() or "lora"
@@ -22,14 +27,17 @@ class LoraMixin:
                         filepath = os.path.join(root, file)
                         break
             try:
-                self.load_lora(filepath, multiplier=lora["scale"] / 100.0)
+                self.load_lora(filepath)
                 self.loaded_lora.append({"name": lora["name"], "scale": lora["scale"]})
             except RuntimeError as e:
                 print(e)
                 print("Failed to load lora")
 
+    def load_lora(self, checkpoint_path):
+        self.pipe.load_lora_weights(".", weight_name=checkpoint_path)
+
     # https://github.com/huggingface/diffusers/issues/3064
-    def load_lora(self, checkpoint_path, multiplier=1.0, device="cuda", dtype=torch.float16):
+    def load_lora_old(self, checkpoint_path, multiplier=1.0, device="cuda", dtype=torch.float16):
         LORA_PREFIX_UNET = "lora_unet"
         LORA_PREFIX_TEXT_ENCODER = "lora_te"
         # load LoRA weight from .safetensors
