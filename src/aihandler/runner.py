@@ -576,40 +576,41 @@ class SDRunner(
                         pass
             return image, nsfw_content_detected
 
-    def add_lora_to_pipe(self):
-        if not self.lora_loaded:
-            self.loaded_lora = []
-
-        reload_lora = False
-        if len(self.loaded_lora) > 0:
-            # comparre lora in self.options[f"{self.action}_lora"] with self.loaded_lora
-            # if the lora["name"] in options is not in self.loaded_lora, or lora["scale"] is different, reload lora
-            for lora in self.options[f"{self.action}_lora"]:
-                lora_in_loaded_lora = False
-                for loaded_lora in self.loaded_lora:
-                    if lora["name"] == loaded_lora["name"] and lora["scale"] == loaded_lora["scale"]:
-                        lora_in_loaded_lora = True
-                        break
-                if not lora_in_loaded_lora:
-                    reload_lora = True
-                    break
-            if len(self.options[f"{self.action}_lora"]) != len(self.loaded_lora):
-                reload_lora = True
-
-        if reload_lora:
-            self.loaded_lora = []
-            self.unload_unused_models()
-            # self._load_model()
-            return self.generator_sample(
-                self.data,
-                self._image_var,
-                self._error_var,
-                self._use_callback
-            )
-
-        if len(self.loaded_lora) == 0 and len(self.options[f"{self.action}_lora"]) > 0:
-            self.apply_lora()
-            self.lora_loaded = len(self.loaded_lora) > 0
+    # def add_lora_to_pipe(self):
+    #     # if not self.lora_loaded:
+    #     #     self.loaded_lora = []
+    #     #
+    #     # reload_lora = False
+    #     # if len(self.loaded_lora) > 0:
+    #     #     # comparre lora in self.options[f"{self.action}_lora"] with self.loaded_lora
+    #     #     # if the lora["name"] in options is not in self.loaded_lora, or lora["scale"] is different, reload lora
+    #     #     for lora in self.options[f"{self.action}_lora"]:
+    #     #         lora_in_loaded_lora = False
+    #     #         for loaded_lora in self.loaded_lora:
+    #     #             if lora["name"] == loaded_lora["name"] and lora["scale"] == loaded_lora["scale"]:
+    #     #                 lora_in_loaded_lora = True
+    #     #                 break
+    #     #         if not lora_in_loaded_lora:
+    #     #             reload_lora = True
+    #     #             break
+    #     #     if len(self.options[f"{self.action}_lora"]) != len(self.loaded_lora):
+    #     #         reload_lora = True
+    #     #
+    #     # if reload_lora:
+    #     #     self.loaded_lora = []
+    #     #     self.unload_unused_models()
+    #     #     # self._load_model()
+    #     #     return self.generator_sample(
+    #     #         self.data,
+    #     #         self._image_var,
+    #     #         self._error_var,
+    #     #         self._use_callback
+    #     #     )
+    #     #
+    #     # if len(self.loaded_lora) == 0 and len(self.options[f"{self.action}_lora"]) > 0:
+    #     #     self.apply_lora()
+    #     #     self.lora_loaded = len(self.loaded_lora) > 0
+    #     return
 
     def call_pipe(self, **kwargs):
         """
@@ -645,6 +646,8 @@ class SDRunner(
             args.update(kwargs)
         if self.use_kandinsky:
             return self.kandinsky_call_pipe(**kwargs)
+        if len(self.options[f"{self.action}_lora"]) > 0:
+            args["cross_attention_kwargs"] = {"scale": 1.0}
         return self.pipe(**args)
 
     def prepare_extra_args(self, data, image, mask):
