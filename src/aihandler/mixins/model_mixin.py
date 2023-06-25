@@ -80,7 +80,17 @@ class ModelMixin:
         if not scheduler_name:
             scheduler_name = self.scheduler_name
         if not path:
-            path = f"{self.settings_manager.settings.model_base_path.get()}/{self.model}"
+            if self.is_txt2img or self.is_img2img:
+                path = self.settings_manager.settings.model_base_path.get()
+            elif self.is_depth2img:
+                path = self.settings_manager.settings.depth2img_model_path.get()
+            elif self.is_pix2pix:
+                path = self.settings_manager.settings.pix2pix_model_path.get()
+            elif self.is_outpaint:
+                path = self.settings_manager.settings.outpaint_model_path.get()
+            elif self.is_superresolution or self.is_upscale:
+                path = self.settings_manager.settings.upscale_model_path.get()
+            path = f"{path}/{self.model}"
         if not device:
             device = self.device
         try:
