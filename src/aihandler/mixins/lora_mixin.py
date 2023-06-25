@@ -34,7 +34,10 @@ class LoraMixin:
                 print("Failed to load lora")
 
     def load_lora(self, checkpoint_path):
-        self.pipe.load_lora_weights(".", weight_name=checkpoint_path)
+        try:
+            self.pipe.load_lora_weights(".", weight_name=checkpoint_path)
+        except ValueError as e:
+            self.error_handler("Failed to load lora")
 
     # https://github.com/huggingface/diffusers/issues/3064
     def load_lora_old(self, checkpoint_path, multiplier=1.0, device="cuda", dtype=torch.float16):
