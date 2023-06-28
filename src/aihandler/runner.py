@@ -664,7 +664,12 @@ class SDRunner(
         }
         if not self.use_kandinsky and not self.is_txt2vid and not self.is_upscale and not self.is_superresolution:
             # self.pipe = self.call_pipe_extension(**kwargs)  TODO: extensions
-            self.add_lora_to_pipe()
+            try:
+                self.add_lora_to_pipe()
+            except Exception as e:
+                self.error_handler("Selected LoRA are not supported with this model")
+                self.reload_model = True
+                return
         if self.is_upscale:
             args["prompt"] = self.prompt
             args["negative_prompt"] = self.negative_prompt
