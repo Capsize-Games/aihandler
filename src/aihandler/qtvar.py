@@ -79,7 +79,7 @@ class ErrorHandlerVar(Var):
         self.my_signal.emit(self.message)
 
 class ImageVar(Var):
-    image = pyqtSignal(object)
+    images = pyqtSignal(object)
     data = pyqtSignal(object)
     nsfw_content_detected = pyqtSignal(bool)
     my_signal = pyqtSignal(object, object, bool)
@@ -87,13 +87,13 @@ class ImageVar(Var):
     def set(self, val, skip_save=False):
         if val is None:
             return
-        self.image = val["image"]
+        self.images = val["images"]
         self.data = val["data"]
         self.nsfw_content_detected = val["nsfw_content_detected"]
         self.emit()
 
     def emit(self):
-        self.my_signal.emit(self.image, self.data, self.nsfw_content_detected)
+        self.my_signal.emit(self.images, self.data, self.nsfw_content_detected)
 
 
 class BooleanVar(Var):

@@ -45,8 +45,14 @@ class CompelMixin:
         self.clear_memory()
         prompt = self.prompt
         negative_prompt = self.negative_prompt if self.negative_prompt else ""
-        prompt_embeds = self.compel_proc.build_conditioning_tensor(prompt)
-        negative_prompt_embeds = self.compel_proc.build_conditioning_tensor(negative_prompt)
+
+        # check if prompt is string
+        if isinstance(prompt, str):
+            prompt_embeds = self.compel_proc.build_conditioning_tensor(prompt)
+            negative_prompt_embeds = self.compel_proc.build_conditioning_tensor(negative_prompt)
+        else:
+            prompt_embeds = self.compel_proc(prompt)
+            negative_prompt_embeds = self.compel_proc(negative_prompt)
         [prompt_embeds, negative_prompt_embeds] = self.compel_proc.pad_conditioning_tensors_to_same_length([prompt_embeds, negative_prompt_embeds])
         self.prompt_embeds = prompt_embeds
         self.negative_prompt_embeds = negative_prompt_embeds

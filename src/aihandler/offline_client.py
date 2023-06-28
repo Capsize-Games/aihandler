@@ -70,7 +70,7 @@ class OfflineClient:
         self.logger = logging.getLogger()
         self.do_start()
 
-    def image_handler(self, image, data, nsfw_content_detected):
+    def image_handler(self, images, data, nsfw_content_detected):
         logger.info("Image handler called")
         if self.socket_server:
             logger.info("Sending image to socket server")
@@ -78,6 +78,7 @@ class OfflineClient:
             buffered = BytesIO()
 
             # scale for pixel art
+            image = images[0]
             width = image.width
             height = image.height
             image = image.resize((int(width / 4), int(height / 4)), resample=Image.BICUBIC)
@@ -102,7 +103,8 @@ class OfflineClient:
             self.socket_server.send_response(data)
         else:
             # save image to disc
-            image.save("image.png")
+            for index, image in enumerate(images):
+                image.save(f"image_{index}.png")
 
     def error_handler(self, error):
         self.message_handler(message=error, error=True)

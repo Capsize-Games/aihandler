@@ -43,7 +43,7 @@ class MemoryEfficientMixin:
         return self.settings_manager.settings.use_tiled_vae.get()
 
     def apply_last_channels(self):
-        if self.use_kandinsky:
+        if self.use_kandinsky or self.is_txt2vid:
             return
         if self.use_last_channels:
             logger.info("Enabling torch.channels_last")
@@ -58,10 +58,16 @@ class MemoryEfficientMixin:
         ] and not self.use_kandinsky:
             if self.use_enable_vae_slicing:
                 logger.info("Enabling vae slicing")
-                self.pipe.enable_vae_slicing()
+                try:
+                    self.pipe.enable_vae_slicing()
+                except AttributeError:
+                    pass
             else:
                 logger.info("Disabling vae slicing")
-                self.pipe.disable_vae_slicing()
+                try:
+                    self.pipe.disable_vae_slicing()
+                except AttributeError:
+                    pass
 
     def apply_attention_slicing(self):
         if self.use_attention_slicing:
@@ -87,10 +93,6 @@ class MemoryEfficientMixin:
         if not (self.cuda_is_available and self.settings_manager.settings.use_accelerated_transformers.get()):
             logger.info("Disabling accelerated transformers")
             self.pipe.unet.set_default_attn_processor()
-        else:
-            logger.info("Enabling accelerated transformers")
-            from diffusers.models.attention_processor import AttnProcessor2_0
-            self.pipe.unet.set_attn_processor(AttnProcessor2_0())
 
     def save_unet(self, file_path, file_name):
         logger.info(f"Saving compiled torch model {file_name}")
