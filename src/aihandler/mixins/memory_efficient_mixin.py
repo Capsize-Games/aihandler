@@ -93,10 +93,6 @@ class MemoryEfficientMixin:
         if not (self.cuda_is_available and self.settings_manager.settings.use_accelerated_transformers.get()):
             logger.info("Disabling accelerated transformers")
             self.pipe.unet.set_default_attn_processor()
-        else:
-            logger.info("Enabling accelerated transformers")
-            from diffusers.models.attention_processor import AttnProcessor2_0
-            self.pipe.unet.set_attn_processor(AttnProcessor2_0())
 
     def save_unet(self, file_path, file_name):
         logger.info(f"Saving compiled torch model {file_name}")
