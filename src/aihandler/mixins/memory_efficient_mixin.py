@@ -58,10 +58,16 @@ class MemoryEfficientMixin:
         ] and not self.use_kandinsky:
             if self.use_enable_vae_slicing:
                 logger.info("Enabling vae slicing")
-                self.pipe.enable_vae_slicing()
+                try:
+                    self.pipe.enable_vae_slicing()
+                except AttributeError:
+                    pass
             else:
                 logger.info("Disabling vae slicing")
-                self.pipe.disable_vae_slicing()
+                try:
+                    self.pipe.disable_vae_slicing()
+                except AttributeError:
+                    pass
 
     def apply_attention_slicing(self):
         if self.use_attention_slicing:
