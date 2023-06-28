@@ -1,7 +1,6 @@
 import os
 import gc
 import re
-
 import numpy as np
 import requests
 from aihandler.base_runner import BaseRunner
@@ -95,6 +94,10 @@ class SDRunner(
     def seed(self):
         return self.options.get(f"{self.action}_seed", 42) + self.current_sample
 
+    @property
+    def deterministic_seed(self):
+        return self.options.get("deterministic_seed", None)
+
     @staticmethod
     def convert_prompt_weights(prompt):
         """
@@ -125,11 +128,67 @@ class SDRunner(
             prompt = prompt.replace(f"({match[0]}:{match[1]})", f"({match[0]}){match[1]}")
         return prompt
 
+    def random_word(self):
+        adjectives = [
+            "beautiful",
+            "gorgeous",
+            "stunning",
+            "pretty",
+            "colorful",
+            "vibrant",
+            "hideous",
+            "ugly",
+            "boring",
+            "dull",
+            "interesting",
+            "exciting",
+            "funny",
+            "hilarious",
+            "sad",
+            "depressing",
+            "happy",
+            "joyful",
+            "angry",
+            "mad",
+            "upset",
+            "annoyed",
+            "trending",
+            "popular",
+            "famous",
+            "infamous",
+            "unknown",
+            "mysterious",
+            "scary",
+            "frightening",
+            "terrifying",
+            "cute",
+            "adorable",
+            "sweet",
+            "sour",
+            "bitter",
+            "salty",
+            "spicy",
+            "hot",
+            "cold",
+            "warm",
+            "cool",
+            "icy",
+            "freezing",
+            "boiling",
+            "burning",
+        ]
+        return np.random.choice(adjectives)
+
     @property
     def prompt(self):
         prompt = self.options.get(f"{self.action}_prompt")
         if self.use_prompt_converter:
             prompt = SDRunner.convert_prompt_weights(prompt)
+        if self.deterministic_seed:
+            prompt = [prompt + f", {self.random_word()}" for _t in range(4)]
+        elif self.deterministic_generation:
+            prompt = [prompt for _t in range(4)]
+        self.requested_data[f"{self.action}_prompt"] = prompt
         return prompt
 
     @property
@@ -137,6 +196,8 @@ class SDRunner(
         negative_prompt = self.options.get(f"{self.action}_negative_prompt")
         if self.use_prompt_converter:
             negative_prompt = SDRunner.convert_prompt_weights(negative_prompt)
+        if self.deterministic_generation:
+            negative_prompt = [negative_prompt for t in range(4)]
         return negative_prompt
 
     @property
@@ -190,6 +251,10 @@ class SDRunner(
     @property
     def strength(self):
         return self.options.get(f"{self.action}_strength", 1)
+
+    @property
+    def image(self):
+        return self.options.get(f"{self.action}_image", None)
 
     @property
     def enable_model_cpu_offload(self):
@@ -305,8 +370,16 @@ class SDRunner(
         return self.options.get("use_interpolation", False)
 
     @property
+    def use_interpolation(self):
+        return self.options.get("use_interpolation", False)
+
+    @property
     def interpolation_data(self):
         return self.options.get("interpolation_data", None)
+
+    @property
+    def deterministic_generation(self):
+        return self.options.get("deterministic_generation", False)
 
     @property
     def current_model(self):
@@ -482,8 +555,8 @@ class SDRunner(
         gc.collect()
 
     def initialize(self):
+        # get classname of self.action_diffuser
         if not self.initialized or self.reload_model:
-            logger.info("Initializing model")
             self.compel_proc = None
             self.prompt_embeds = None
             self.negative_prompt_embeds = None
@@ -566,51 +639,16 @@ class SDRunner(
         if self.is_txt2vid:
             return self.handle_txt2vid_output(output)
         else:
-            image = output.images[0] if output else None
             nsfw_content_detected = None
+            images = None
             if output:
+                images = output.images
                 if self.action_has_safety_checker:
                     try:
                         nsfw_content_detected = output.nsfw_content_detected
                     except AttributeError:
                         pass
-            return image, nsfw_content_detected
-
-    # def add_lora_to_pipe(self):
-    #     # if not self.lora_loaded:
-    #     #     self.loaded_lora = []
-    #     #
-    #     # reload_lora = False
-    #     # if len(self.loaded_lora) > 0:
-    #     #     # comparre lora in self.options[f"{self.action}_lora"] with self.loaded_lora
-    #     #     # if the lora["name"] in options is not in self.loaded_lora, or lora["scale"] is different, reload lora
-    #     #     for lora in self.options[f"{self.action}_lora"]:
-    #     #         lora_in_loaded_lora = False
-    #     #         for loaded_lora in self.loaded_lora:
-    #     #             if lora["name"] == loaded_lora["name"] and lora["scale"] == loaded_lora["scale"]:
-    #     #                 lora_in_loaded_lora = True
-    #     #                 break
-    #     #         if not lora_in_loaded_lora:
-    #     #             reload_lora = True
-    #     #             break
-    #     #     if len(self.options[f"{self.action}_lora"]) != len(self.loaded_lora):
-    #     #         reload_lora = True
-    #     #
-    #     # if reload_lora:
-    #     #     self.loaded_lora = []
-    #     #     self.unload_unused_models()
-    #     #     # self._load_model()
-    #     #     return self.generator_sample(
-    #     #         self.data,
-    #     #         self._image_var,
-    #     #         self._error_var,
-    #     #         self._use_callback
-    #     #     )
-    #     #
-    #     # if len(self.loaded_lora) == 0 and len(self.options[f"{self.action}_lora"]) > 0:
-    #     #     self.apply_lora()
-    #     #     self.lora_loaded = len(self.loaded_lora) > 0
-    #     return
+            return images, nsfw_content_detected
 
     def call_pipe(self, **kwargs):
         """
@@ -646,8 +684,18 @@ class SDRunner(
             args.update(kwargs)
         if self.use_kandinsky:
             return self.kandinsky_call_pipe(**kwargs)
-        if len(self.options[f"{self.action}_lora"]) > 0:
+        if len(self.options[f"{self.action}_lora"]) > 0 and len(self.loaded_lora) > 0:
             args["cross_attention_kwargs"] = {"scale": 1.0}
+
+        if self.deterministic_generation:
+            if self.is_txt2img:
+                if self.deterministic_seed:
+                    generator = [torch.Generator(device=self.device).manual_seed(self.seed) for _i in range(4)]
+                else:
+                    generator = [torch.Generator(device=self.device).manual_seed(self.seed+i) for i in range(4)]
+                args["generator"] = generator
+            if not self.is_upscale and not self.is_superresolution and not self.is_txt2vid:
+                args["num_images_per_prompt"] = 1
         return self.pipe(**args)
 
     def prepare_extra_args(self, data, image, mask):
@@ -696,8 +744,9 @@ class SDRunner(
             if self.do_mega_scale:
                 return self.do_mega_scale_sample(data, image, extra_args)
             else:
-                image, nsfw_content_detected = self.do_sample(**extra_args)
+                images, nsfw_content_detected = self.do_sample(**extra_args)
         except Exception as e:
+            images = None
             if "PYTORCH_CUDA_ALLOC_CONF" in str(e):
                 self.log_error(self.cuda_error_message)
             else:
@@ -705,7 +754,7 @@ class SDRunner(
 
         self.final_callback()
 
-        return image, nsfw_content_detected
+        return images, nsfw_content_detected
 
     def do_mega_scale_sample(self, data, image, extra_args):
         # first we will downscale the original image using the PIL algorithm
@@ -750,10 +799,13 @@ class SDRunner(
         # upscale back to self.width and self.height
         image = upscaled_image  # .resize((original_image_width, original_image_height), Image.BILINEAR)
 
-        return image
+        return [image]
+
+    requested_data = None
 
     def generate(self, data: dict, image_var: ImageVar = None, use_callback: bool = True):
         logger.info("generate called")
+        self.requested_data = data
         self.do_cancel = False
         self.prepare_options(data)
         if self.do_clear_kandinsky:
@@ -772,23 +824,23 @@ class SDRunner(
             total_to_generate = self.batch_size
         for n in range(total_to_generate):
             self.current_sample = n
-            image, nsfw_content_detected = self.sample_diffusers_model(data)
+            images, nsfw_content_detected = self.sample_diffusers_model(data)
             if use_callback:
-                self.image_handler(image, data, nsfw_content_detected)
+                self.image_handler(images, self.requested_data, nsfw_content_detected)
             else:
-                return image, nsfw_content_detected
+                return images, nsfw_content_detected
             if self.do_cancel:
                 self.do_cancel = False
                 break
         self.current_sample = 0
 
-    def image_handler(self, image, data, nsfw_content_detected):
-        if image:
+    def image_handler(self, images, data, nsfw_content_detected):
+        if images:
             if self._image_handler:
-                self._image_handler(image, data, nsfw_content_detected)
+                self._image_handler(images, data, nsfw_content_detected)
             elif self._image_var:
                 self._image_var.set({
-                    "image": image,
+                    "images": images,
                     "data": data,
                     "nsfw_content_detected": nsfw_content_detected == True,
                 })
