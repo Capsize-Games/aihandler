@@ -401,6 +401,8 @@ class SDRunner(
             path = self.settings_manager.settings.pix2pix_model_path.get()
         elif self.is_depth2img:
             path = self.settings_manager.settings.depth2img_model_path.get()
+        elif self.is_superresolution or self.is_upscale:
+            path = self.settings_manager.settings.upscale_model_path.get()
         if path is None or path == "":
             path = self.settings_manager.settings.model_base_path.get()
         if self.current_model:
