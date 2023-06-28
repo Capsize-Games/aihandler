@@ -916,6 +916,7 @@ class SDRunner(
                 self.clear_memory()
             else:
                 error_message = f"Error during generation"
+                traceback.print_exc()
 
         if error:
             self.log_error(error, error_message)
