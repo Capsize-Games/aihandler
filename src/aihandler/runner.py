@@ -394,16 +394,15 @@ class SDRunner(
     def model_path(self):
         if self.current_model and os.path.exists(self.current_model):
             return self.current_model
-        base_path = self.settings_manager.settings.model_base_path.get()
         path = None
-        if self.action == "outpaint":
+        if self.is_outpaint:
             path = self.settings_manager.settings.outpaint_model_path.get()
-        elif self.action == "pix2pix":
+        elif self.is_pix2pix:
             path = self.settings_manager.settings.pix2pix_model_path.get()
-        elif self.action == "depth2img":
+        elif self.is_depth2img:
             path = self.settings_manager.settings.depth2img_model_path.get()
         if path is None or path == "":
-            path = base_path
+            path = self.settings_manager.settings.model_base_path.get()
         if self.current_model:
             path = os.path.join(path, self.current_model)
         if not os.path.exists(path):
