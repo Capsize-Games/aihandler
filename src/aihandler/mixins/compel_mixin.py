@@ -21,6 +21,12 @@ class CompelMixin:
 
     @property
     def prompt_embeds(self):
+        # reset prompt_embeds if deterministic_generation is True and it has a size of 1
+        if self._prompt_embeds is not None and self.deterministic_generation:
+            shape = self._prompt_embeds.shape
+            size = shape[0]
+            if size == 1:
+                self._prompt_embeds = None
         if self._prompt_embeds is None:
             self.load_prompt_embeds()
         return self._prompt_embeds
@@ -31,6 +37,12 @@ class CompelMixin:
 
     @property
     def negative_prompt_embeds(self):
+        # reset negative_prompt_embeds if deterministic_generation is True and it has a size of 1
+        if self._negative_prompt_embeds is not None and self.deterministic_generation:
+            shape = self._negative_prompt_embeds.shape
+            size = shape[0]
+            if size == 1:
+                self._negative_prompt_embeds = None
         if self._negative_prompt_embeds is None:
             self.load_prompt_embeds()
         return self._negative_prompt_embeds
