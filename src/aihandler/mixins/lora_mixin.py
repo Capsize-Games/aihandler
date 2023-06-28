@@ -11,7 +11,6 @@ from safetensors.torch import load_file
 
 class LoraMixin:
     def add_lora_to_pipe(self):
-        #if not self.lora_loaded:
         self.loaded_lora = []
         self.apply_lora()
 
