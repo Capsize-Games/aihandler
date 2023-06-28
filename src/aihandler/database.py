@@ -48,6 +48,7 @@ DEFAULT_GENERATOR_SETTINGS = {
     "do_upscale_full_image": True,
     "do_upscale_by_active_grid": False,
     "downscale_amount": 1,
+    "deterministic": False,
 }
 GENERATOR_TYPES = {
     "prompt": StringVar,
@@ -68,6 +69,7 @@ GENERATOR_TYPES = {
     "do_upscale_full_image": BooleanVar,
     "do_upscale_by_active_grid": BooleanVar,
     "downscale_amount": IntVar,
+    "deterministic": BooleanVar,
 }
 USER = os.environ.get("USER", "")
 default_model_path = os.path.join("/", "home", USER, "stablediffusion")
