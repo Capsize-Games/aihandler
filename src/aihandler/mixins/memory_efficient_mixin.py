@@ -43,7 +43,7 @@ class MemoryEfficientMixin:
         return self.settings_manager.settings.use_tiled_vae.get()
 
     def apply_last_channels(self):
-        if self.use_kandinsky:
+        if self.use_kandinsky or self.is_txt2vid:
             return
         if self.use_last_channels:
             logger.info("Enabling torch.channels_last")
