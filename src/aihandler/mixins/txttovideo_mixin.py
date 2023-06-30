@@ -5,8 +5,21 @@ from PIL import Image
 
 class TexttovideoMixin:
     @property
+    def video_path(self):
+        base_path = os.path.join(self.model_base_path, "videos")
+        if self.settings_manager.settings.has_attr("video_path"):
+            path = self.settings_manager.settings.video_path.get()
+            if not path or path == "":
+                path = base_path
+        else:
+            path = base_path
+        if not os.path.exists(path):
+            os.makedirs(path)
+        return path
+
+    @property
     def txt2vid_file(self):
-        return os.path.join(self.model_base_path, "videos", f"{self.prompt}_{self.seed}.mp4")
+        return os.path.join(self.video_path, f"{self.prompt}_{self.seed}.mp4")
 
     def enhance_video(self, video_frames):
         """
