@@ -6,13 +6,10 @@ from PIL import Image
 class TexttovideoMixin:
     @property
     def video_path(self):
-        base_path = os.path.join(self.model_base_path, "videos")
-        if self.settings_manager.settings.has_attr("video_path"):
-            path = self.settings_manager.settings.video_path.get()
-            if not path or path == "":
-                path = base_path
-        else:
-            path = base_path
+        path = os.path.join(self.model_base_path, "videos")
+        video_path = self.settings_manager.settings.video_path.get()
+        if video_path and video_path != "":
+            path = video_path
         if not os.path.exists(path):
             os.makedirs(path)
         return path
