@@ -256,6 +256,9 @@ class RunAISettings(BaseSettings):
         self.image_path = StringVar(app, "")
         self.image_export_type = StringVar(app, "png")
 
+        # Video export preferences
+        self.video_path = StringVar(app, "")
+
         ## Image export preferences metadata
         self.image_export_metadata_prompt = BooleanVar(app)
         self.image_export_metadata_negative_prompt = BooleanVar(app)
