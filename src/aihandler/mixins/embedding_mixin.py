@@ -22,7 +22,12 @@ class EmbeddingMixin:
                     if words[-1] in ["pt", "ckpt", "pth", "safetensors"]:
                         words = words[:-1]
                     token = ".".join(words).lower()
-                    self.pipe.load_textual_inversion(path, token=token, weight_name=f)
+                    try:
+                        self.pipe.load_textual_inversion(path, token=token, weight_name=f)
+                    except Exception as e:
+                        logger.warning("Failed to load " + path)
+                        logger.warning(e)
+
             except AttributeError as e:
                 if "load_textual_inversion" in str(e):
                     embeddings_not_supported = True

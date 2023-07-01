@@ -19,7 +19,7 @@ install_requires = [
     "pyqtdarktheme==2.1.0",
     "pyre-extensions==0.0.29",
     "lightning==2.0.2",
-    "requests==2.30.0",
+    "requests==2.31.0",
     "requests-oauthlib==1.3.1",
     "safetensors==0.3.1",
     "scipy==1.10.1",
@@ -41,7 +41,7 @@ install_requires = [
 
 setup(
     name="aihandler",
-    version="1.17.2",
+    version="1.17.3",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),
