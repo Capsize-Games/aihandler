@@ -128,4 +128,3 @@ def import_extension_class(extension_repo, extension_path, file_name, class_name
     except FileNotFoundError as e:
         print(e)
         print("Unable to import extension class")
-

@@ -1,10 +1,10 @@
 import os
 import gc
-import re
 import numpy as np
 import requests
 from aihandler.base_runner import BaseRunner
 from aihandler.mixins.kandinsky_mixin import KandinskyMixin
+from aihandler.prompt_weight_bridge import PromptWeightBridge
 from aihandler.qtvar import ImageVar
 import traceback
 import torch
@@ -19,6 +19,7 @@ from aihandler.mixins.txttovideo_mixin import TexttovideoMixin
 from aihandler.mixins.compel_mixin import CompelMixin
 from aihandler.mixins.scheduler_mixin import SchedulerMixin
 from aihandler.mixins.model_mixin import ModelMixin
+
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
@@ -98,36 +99,6 @@ class SDRunner(
     def deterministic_seed(self):
         return self.options.get("deterministic_seed", None)
 
-    @staticmethod
-    def convert_prompt_weights(prompt):
-        """
-        This function converts prompts in the style of automatic1111 to compel style prompts
-        :param prompt:
-        :return:
-        """
-        if not prompt:
-            return prompt
-        # prompt == "Example (ABC): 1.23 XYZ (DEF) (GHI:2.3)"
-        # we only want to find (ABC) and (DEF) in prompt
-        pattern = r"\([A-Z]+\)"
-        matches = re.findall(pattern, prompt)
-        # matches == ["(DEF)"]
-        for match in matches:
-            # replace matches with this:
-            # matches == ["(DEF:1.1)"]
-            # inside of prompt
-            replaced_match = match.replace(")", ":1.1)")
-            prompt = prompt.replace(match, replaced_match)
-
-        # now prompt == "Example (ABC:1.1): 1.23 XYZ (DEF:1.1) (GHI:2.3)"
-        # but we want it to look like this: "Example (ABC)1.1: 1.23 XYZ (DEF)1.1 (GHI)2.3"
-        # so we replace all ":[0-9.]+)" with ")/1"
-        pattern = r"\(([^:]+):([0-9.]+)\)"
-        matches = re.findall(pattern, prompt)
-        for match in matches:
-            prompt = prompt.replace(f"({match[0]}:{match[1]})", f"({match[0]}){match[1]}")
-        return prompt
-
     def random_word(self):
         adjectives = [
             "beautiful",
@@ -183,7 +154,7 @@ class SDRunner(
     def prompt(self):
         prompt = self.options.get(f"{self.action}_prompt")
         if self.use_prompt_converter:
-            prompt = SDRunner.convert_prompt_weights(prompt)
+            prompt = PromptWeightBridge.convert(prompt)
         if self.deterministic_seed:
             prompt = [prompt + f", {self.random_word()}" for _t in range(4)]
         elif self.deterministic_generation:
@@ -195,7 +166,7 @@ class SDRunner(
     def negative_prompt(self):
         negative_prompt = self.options.get(f"{self.action}_negative_prompt")
         if self.use_prompt_converter:
-            negative_prompt = SDRunner.convert_prompt_weights(negative_prompt)
+            negative_prompt = PromptWeightBridge.convert(negative_prompt)
         if self.deterministic_generation:
             negative_prompt = [negative_prompt for t in range(4)]
         return negative_prompt
