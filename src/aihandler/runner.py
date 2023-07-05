@@ -830,19 +830,17 @@ class SDRunner(
     def callback(self, step: int, _time_step, _latents):
         # convert _latents to image
         image = None
-        if not self.is_txt2vid:
-            image = self.latents_to_image(_latents)
         data = self.data
         if self.is_txt2vid:
             data["video_filename"] = self.txt2vid_file
+        steps = int(self.steps * self.strength) if (self.is_img2img or self.is_depth2img) else self.steps
         self.tqdm_callback(
             step,
-            int(self.steps * self.strength),
+            steps,
             self.action,
             image=image,
             data=data,
         )
-        pass
 
     def latents_to_image(self, latents: torch.Tensor):
         image = latents.permute(0, 2, 3, 1)
