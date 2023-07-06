@@ -40,7 +40,7 @@ class SDRunner(
 ):
     _current_model: str = ""
     _previous_model: str = ""
-    initialized: bool = False
+    _initialized: bool = False
     _current_sample = 0
     _reload_model: bool = False
     do_cancel = False
@@ -70,6 +70,22 @@ class SDRunner(
     _model = None
     _controlnet_type = None
     reload_model = False
+
+    @property
+    def initialized(self):
+        return self._initialized
+
+    @initialized.setter
+    def initialized(self, value):
+        self._initialized = value
+
+    @property
+    def reload_model(self):
+        return self._reload_model
+
+    @reload_model.setter
+    def reload_model(self, value):
+        self._reload_model = value
 
     @property
     def current_sample(self):
