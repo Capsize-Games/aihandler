@@ -878,9 +878,11 @@ class SDRunner(
         self.set_message("Generating image...")
 
         action = "depth2img" if data["action"] == "depth" else data["action"]
+
         try:
-            self.initialized =  self.__dict__[action] is not None
+            self.initialized = self.__dict__[action] is not None
         except KeyError:
+            logger.info(f"{action} model has not been initialized yet")
             self.initialized = False
 
         error = None
