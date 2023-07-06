@@ -247,7 +247,7 @@ class RunAISettings(BaseSettings):
         self.embeddings_path = StringVar(app, "")
 
         self.lora_path = StringVar(app, "")
-        self.available_loras = DictVar(app, {})
+        self.available_loras = ListVar(app, [])
 
         self.force_reset = BooleanVar(app, True)
 
