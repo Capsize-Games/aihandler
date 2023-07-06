@@ -149,6 +149,10 @@ MODELS = {
                 "PixelartLSS"
             ]
         },
+        "Openjourney v4": {
+            "path": "prompthero/openjourney-v4",
+            "branch": "main"
+        },
         "SynthwavePunk-v2": {
             "path": "ItsJayQz/SynthwavePunk-v2",
             "branch": "main",
