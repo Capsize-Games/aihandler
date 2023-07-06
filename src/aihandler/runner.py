@@ -558,7 +558,7 @@ class SDRunner(
         self.set_message(f"Preparing options...")
         action = data["action"]
         options = data["options"]
-        model = options.get(f"{action}_model", None)
+        requested_model = options.get(f"{action}_model", None)
         controlnet_type = options.get(f"{action}_controlnet", None)
 
         # do model reload checks here
@@ -568,14 +568,13 @@ class SDRunner(
             )
         ) or (  # model change
             self.model is not None
-            and self.model != model
-            and model is not None
+            and self.model != requested_model
         ) or (  # controlnet change
             self.controlnet_type is not None
             and self.controlnet_type != controlnet_type
             and controlnet_type is not None
         ):
-           self.reload_model = True
+            self.reload_model = True
 
         if self.prompt != options.get(f"{action}_prompt") or \
            self.negative_prompt != options.get(f"{action}_negative_prompt") or \
