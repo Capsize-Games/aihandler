@@ -19,6 +19,8 @@ class LoraMixin:
         lora_path = self.settings_manager.settings.lora_path.get() or "lora"
         path = os.path.join(model_base_path, lora_path) if lora_path == "lora" else lora_path
         for lora in self.options[f"{self.action}_lora"]:
+            if lora["enabled"] == False:
+                continue
             filepath = None
             for root, dirs, files in os.walk(path):
                 for file in files:
