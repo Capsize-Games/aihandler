@@ -278,6 +278,7 @@ class RunAISettings(BaseSettings):
         self.show_active_image_area = BooleanVar(app, False)
 
         self.use_interpolation = BooleanVar(app, False)
+        self.is_maximized = BooleanVar(app, False)
 
     def reset_settings_to_default(self):
         # pasting / generating
@@ -341,6 +342,7 @@ class RunAISettings(BaseSettings):
         self.show_active_image_area.set(False)
 
         self.app.use_interpolation = False
+        self.is_maximized.set(False)
 
 
 class PromptSettings(BaseSettings):
