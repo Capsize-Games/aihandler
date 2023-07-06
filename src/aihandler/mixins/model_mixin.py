@@ -143,6 +143,13 @@ class ModelMixin:
             if self.current_model_branch:
                 kwargs["variant"] = self.current_model_branch
 
+        if ((self.is_img2img and self.txt2img is not None) or
+            (self.is_txt2img and self.img2img is not None) or
+            (self.is_controlnet and self.txt2img is not None) or
+            (self.is_controlnet and self.img2img is not None)) and \
+           not self.reload_model:
+            self.initialized = True
+
         # move all models except for our current action to the CPU
         if not self.initialized or self.reload_model:
             self.unload_unused_models()
@@ -152,6 +159,11 @@ class ModelMixin:
             self.img2img = self.action_diffuser(**self.txt2img.components)
         elif self.is_txt2img and self.img2img is not None:
             self.txt2img = self.action_diffuser(**self.img2img.components)
+        elif self.is_controlnet and (self.txt2img is not None or self.img2img is not None):
+            kwargs = self.txt2img.components if self.txt2img is not None else self.img2img.components
+            kwargs["controlnet"] = self.load_controlnet()
+            self.controlnet = self.action_diffuser(**kwargs)
+            self.load_controlnet_scheduler()
         elif self.pipe is None or self.reload_model:
             logger.info(f"Loading model from scratch {self.reload_model}")
             if self.use_kandinsky:
