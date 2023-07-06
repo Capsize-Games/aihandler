@@ -127,7 +127,7 @@ MODELS = {
             "path": "stabilityai/stable-diffusion-2-1",
             "branch": "fp16",
         },
-        "Stable Diffusion V1": {
+        "Stable Diffusion V1.5": {
             "path": "runwayml/stable-diffusion-v1-5",
             "branch": "fp16",
         },
