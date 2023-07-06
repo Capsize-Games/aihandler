@@ -676,7 +676,7 @@ class SDRunner(
             args.update(kwargs)
         if self.use_kandinsky:
             return self.kandinsky_call_pipe(**kwargs)
-        if len(self.options[f"{self.action}_lora"]) > 0 and len(self.loaded_lora) > 0:
+        if not self.is_pix2pix and len(self.options[f"{self.action}_lora"]) > 0 and len(self.loaded_lora) > 0:
             args["cross_attention_kwargs"] = {"scale": 1.0}
 
         if self.deterministic_generation:
