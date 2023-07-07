@@ -57,7 +57,6 @@ class SocketServer:
                         self.client.message = json.loads(data.decode("utf-8"))
                     except json.decoder.JSONDecodeError:
                         logger.error("Invalid json in request")
-                        print(data)
                     continue
                 else:
                     packets.append(data)

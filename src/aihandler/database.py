@@ -49,6 +49,9 @@ DEFAULT_GENERATOR_SETTINGS = {
     "do_upscale_by_active_grid": False,
     "downscale_amount": 1,
     "deterministic": False,
+    "controlnet_var": "",
+    "enable_controlnet": False,
+    "controlnet_guidance_scale": 50,
 }
 GENERATOR_TYPES = {
     "prompt": StringVar,
@@ -70,6 +73,9 @@ GENERATOR_TYPES = {
     "do_upscale_by_active_grid": BooleanVar,
     "downscale_amount": IntVar,
     "deterministic": BooleanVar,
+    "controlnet_var": StringVar,
+    "enable_controlnet": BooleanVar,
+    "controlnet_guidance_scale": IntVar,
 }
 USER = os.environ.get("USER", "")
 default_model_path = os.path.join("/", "home", USER, "stablediffusion")

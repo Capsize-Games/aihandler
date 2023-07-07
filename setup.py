@@ -8,8 +8,8 @@ install_requires = [
     "tqdm==4.65.0",
     "omegaconf==2.3.0",
     "accelerate==0.20.3",
-    "controlnet_aux==0.0.3",
-    "huggingface-hub==0.15.1",
+    "controlnet_aux==0.0.6",
+    "huggingface-hub==0.16.3",
     "numpy==1.23.5",
     "Pillow==9.5.0",
     "pip==23.1.2",
@@ -31,11 +31,12 @@ install_requires = [
     "setuptools==67.7.2",
     "typing_extensions==4.5.0",
     "urllib3==1.26.15",
-    "diffusers==0.17.1",
+    "diffusers==0.18.0",
     "transformers==4.30.1",
     "compel==1.2.1",
     "sympy==1.12.0",
     "regex",
+    "matplotlib==3.7.2",
 ]
 
 
