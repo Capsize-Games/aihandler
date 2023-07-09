@@ -637,8 +637,6 @@ class SDRunner(
             self.compel_proc = None
             self.prompt_embeds = None
             self.negative_prompt_embeds = None
-            if self._previous_model != self.current_model:
-                self.unload_unused_models(self.action)
             self._load_model()
             self.reload_model = False
             self.initialized = True
