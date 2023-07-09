@@ -11,9 +11,7 @@ class PromptVariable:
     A class which will take a prompt, and replace all variables with random
     values.
     """
-    misc_values = {
-        "age": data
-    }
+    misc_values = data
 
     @classmethod
     def get_values(cls, variable_name):
