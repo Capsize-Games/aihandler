@@ -16,7 +16,6 @@ class EmbeddingMixin:
             logger.info("Loading embeddings...")
             try:
                 for f in os.listdir(learned_embeds_path):
-                    logger.info("Loading " + os.path.join(learned_embeds_path, f))
                     path = os.path.join(learned_embeds_path, f)
                     words = f.split(".")
                     if words[-1] in ["pt", "ckpt", "pth", "safetensors"]:

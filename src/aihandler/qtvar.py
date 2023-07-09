@@ -9,6 +9,9 @@ class Var(QObject):
         self._app = app
         self.set(default, skip_save=True)
 
+    def connect(self, callback):
+        self.my_signal.connect(callback)
+
     def set(self, val, skip_save=False):
         self._my_variable = val
         self.emit()

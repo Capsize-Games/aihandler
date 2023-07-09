@@ -119,6 +119,11 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
 UPSCALERS = ["None", "Lanczos"]
 MODELS = {
     "stablediffusion_generate": {
+        "Stable Diuffions XL 0.9":
+        {
+            "path": "stabilityai/stable-diffusion-xl-base-0.9",
+            "branch": "fp16"
+        },
         "Stable Diffusion V2.1": {
             "path": "stabilityai/stable-diffusion-2-1-base",
             "branch": "fp16",
@@ -127,7 +132,7 @@ MODELS = {
             "path": "stabilityai/stable-diffusion-2-1",
             "branch": "fp16",
         },
-        "Stable Diffusion V1": {
+        "Stable Diffusion V1.5": {
             "path": "runwayml/stable-diffusion-v1-5",
             "branch": "fp16",
         },
@@ -148,6 +153,10 @@ MODELS = {
                 "PixelartBSS",
                 "PixelartLSS"
             ]
+        },
+        "Openjourney v4": {
+            "path": "prompthero/openjourney-v4",
+            "branch": "main"
         },
         "SynthwavePunk-v2": {
             "path": "ItsJayQz/SynthwavePunk-v2",

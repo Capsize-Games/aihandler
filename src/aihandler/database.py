@@ -49,6 +49,9 @@ DEFAULT_GENERATOR_SETTINGS = {
     "do_upscale_by_active_grid": False,
     "downscale_amount": 1,
     "deterministic": False,
+    "controlnet_var": "",
+    "enable_controlnet": False,
+    "controlnet_guidance_scale": 50,
 }
 GENERATOR_TYPES = {
     "prompt": StringVar,
@@ -70,6 +73,9 @@ GENERATOR_TYPES = {
     "do_upscale_by_active_grid": BooleanVar,
     "downscale_amount": IntVar,
     "deterministic": BooleanVar,
+    "controlnet_var": StringVar,
+    "enable_controlnet": BooleanVar,
+    "controlnet_guidance_scale": IntVar,
 }
 USER = os.environ.get("USER", "")
 default_model_path = os.path.join("/", "home", USER, "stablediffusion")
@@ -247,7 +253,7 @@ class RunAISettings(BaseSettings):
         self.embeddings_path = StringVar(app, "")
 
         self.lora_path = StringVar(app, "")
-        self.available_loras = DictVar(app, {})
+        self.available_loras = ListVar(app, [])
 
         self.force_reset = BooleanVar(app, True)
 
@@ -278,6 +284,24 @@ class RunAISettings(BaseSettings):
         self.show_active_image_area = BooleanVar(app, False)
 
         self.use_interpolation = BooleanVar(app, False)
+        self.is_maximized = BooleanVar(app, False)
+
+        self.main_splitter_sizes = IntVar(app, [-1, -1, -1])
+        self.bottom_splitter_sizes = IntVar(app, [0, 0])
+
+        self.use_prompt_builder_checkbox = BooleanVar(app, False)
+
+        self.auto_prompt_weight = FloatVar(app, 0.5)
+        self.negative_auto_prompt_weight = FloatVar(app, 0.5)
+        self.prompt_generator_basic_category = StringVar(app, "")
+        self.prompt_generator_advanced_category = StringVar(app, "")
+        self.prompt_generator_basic_prompt = StringVar(app, "")
+        self.prompt_generator_advanced_prompt = StringVar(app, "")
+        self.prompt_generator_basic_style = StringVar(app, "")
+        self.prompt_generator_advanced_style = StringVar(app, "")
+        self.prompt_generator_weighted_values = DictVar(app, {})
+        self.prompt_generator_basic_randomize_checkbox = BooleanVar(app, False)
+
 
     def reset_settings_to_default(self):
         # pasting / generating
@@ -341,6 +365,10 @@ class RunAISettings(BaseSettings):
         self.show_active_image_area.set(False)
 
         self.app.use_interpolation = False
+        self.is_maximized.set(False)
+
+        self.auto_prompt_weight.set(0.5)
+        self.auto_negative_prompt_weight.set(0.5)
 
 
 class PromptSettings(BaseSettings):

@@ -12,7 +12,10 @@ class MergeMixin:
             StableDiffusionPipeline,
             StableDiffusionInstructPix2PixPipeline,
             StableDiffusionInpaintPipeline,
-            StableDiffusionDepth2ImgPipeline
+            StableDiffusionDepth2ImgPipeline,
+            StableDiffusionUpscalePipeline,
+            StableDiffusionLatentUpscalePipeline,
+            StableDiffusionXLPipeline
         )
         self.data = {
             "action": action,
@@ -27,6 +30,13 @@ class MergeMixin:
             PipeCLS = StableDiffusionDepth2ImgPipeline
         elif action == "pix2pix":
             PipeCLS = StableDiffusionInstructPix2PixPipeline
+        elif action == "upscale":
+            PipeCLS = StableDiffusionLatentUpscalePipeline
+        elif action == "superresolution":
+            return StableDiffusionUpscalePipeline
+
+        if base_model_path == "stabilityai/stable-diffusion-xl-base-0.9":
+            return StableDiffusionXLPipeline
 
         print("LOADING PIPE FROM PRETRAINED", base_model_path)
         if base_model_path.endswith('.ckpt') or base_model_path.endswith('.safetensors'):
