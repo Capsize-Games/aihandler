@@ -286,6 +286,23 @@ class RunAISettings(BaseSettings):
         self.use_interpolation = BooleanVar(app, False)
         self.is_maximized = BooleanVar(app, False)
 
+        self.main_splitter_sizes = IntVar(app, [-1, -1, -1])
+        self.bottom_splitter_sizes = IntVar(app, [0, 0])
+
+        self.use_prompt_builder_checkbox = BooleanVar(app, False)
+
+        self.auto_prompt_weight = FloatVar(app, 0.5)
+        self.negative_auto_prompt_weight = FloatVar(app, 0.5)
+        self.prompt_generator_basic_category = StringVar(app, "")
+        self.prompt_generator_advanced_category = StringVar(app, "")
+        self.prompt_generator_basic_prompt = StringVar(app, "")
+        self.prompt_generator_advanced_prompt = StringVar(app, "")
+        self.prompt_generator_basic_style = StringVar(app, "")
+        self.prompt_generator_advanced_style = StringVar(app, "")
+        self.prompt_generator_weighted_values = DictVar(app, {})
+        self.prompt_generator_basic_randomize_checkbox = BooleanVar(app, False)
+
+
     def reset_settings_to_default(self):
         # pasting / generating
         self.paste_at_working_size.set(False)
