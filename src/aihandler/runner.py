@@ -626,8 +626,7 @@ class SDRunner(
         except requests.ConnectionError:
             return False
 
-    @staticmethod
-    def clear_memory():
+    def clear_memory(self):
         logger.info("Clearing memory")
         torch.cuda.empty_cache()
         gc.collect()
