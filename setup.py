@@ -37,6 +37,7 @@ install_requires = [
     "sympy==1.12.0",
     "regex",
     "matplotlib==3.7.2",
+    "invisible-watermark==0.2.0",
 ]
 
 
