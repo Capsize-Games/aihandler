@@ -38,6 +38,9 @@ class PromptVariable:
             values = available_variables.get(variable_name, [])
         else:
             values = cls.get_values(variable_name)
+        if isinstance(values, dict):
+            if "type" in values and values["type"] == "range":
+                return random.randint(values["min"], values["max"])
         if len(values) > 0:
             return random.choice(values).lower()
         print("No values found for variable: " + variable_name)
