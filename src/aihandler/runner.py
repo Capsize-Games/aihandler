@@ -713,16 +713,14 @@ class SDRunner(
             return
         if not self.do_nsfw_filter:
             self.pipe.safety_checker = None
-        else:
+        elif self.pipe.safety_checker is None:
             self.pipe.safety_checker = self.safety_checker
+            if self.pipe.safety_checker:
+                self.pipe.safety_checker.to(self.device)
 
     def do_sample(self, **kwargs):
         logger.info(f"Sampling {self.action}")
         self.set_message(f"Generating image...")
-
-        if not self.use_kandinsky:
-            logger.info(f"Load safety checker")
-            self.load_safety_checker(self.action)
 
         try:
             logger.info(f"Generating image")
@@ -1083,6 +1081,7 @@ class SDRunner(
     def load_controlnet(self):
         logger.info(f"Loading controlnet {self.controlnet_type} self.controlnet_model {self.controlnet_model}")
         from diffusers import ControlNetModel
+        self._controlnet = None
         controlnet = ControlNetModel.from_pretrained(
             self.controlnet_model,
             local_files_only=self.local_files_only,
@@ -1259,10 +1258,6 @@ class SDRunner(
             ) and (do_load_controlnet or do_unload_controlnet))
         )
 
-        if not reuse_pipeline:
-            do_load_controlnet = False
-            do_unload_controlnet = False
-
         if reuse_pipeline and not self.reload_model:
             self.initialized = True
 
@@ -1305,6 +1300,11 @@ class SDRunner(
 
         self.load_learned_embed_in_clip()
 
+    def clear_controlnet(self):
+        self._controlnet = None
+        self.clear_memory()
+        self.controlnet_loaded = False
+
     def reuse_pipeline(self, do_load_controlnet):
         logger.info(f"{'Loading' if do_load_controlnet else 'Unloading'} controlnet")
         pipe = None
@@ -1319,7 +1319,7 @@ class SDRunner(
             else:
                 pipe = self.img2img
         if pipe is None:
-            self.controlnet_loaded = False
+            self.clear_controlnet()
             logger.warning("Failed to reuse pipeline")
             return
         kwargs = pipe.components
@@ -1329,7 +1329,7 @@ class SDRunner(
         else:
             if "controlnet" in kwargs:
                 del kwargs["controlnet"]
-            self.controlnet_loaded = False
+            self.clear_controlnet()
         if do_load_controlnet:
             pipe = self.controlnet_action_diffuser(**kwargs)
         else:
