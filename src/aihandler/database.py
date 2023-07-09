@@ -367,6 +367,9 @@ class RunAISettings(BaseSettings):
         self.app.use_interpolation = False
         self.is_maximized.set(False)
 
+        self.auto_prompt_weight.set(0.5)
+        self.auto_negative_prompt_weight.set(0.5)
+
 
 class PromptSettings(BaseSettings):
     namespace = "prompts"
