@@ -674,7 +674,43 @@ class SDRunner(
         if not self.use_kandinsky:
             torch.backends.cuda.matmul.allow_tf32 = self.use_tf32
 
-    def load_safety_checker(self, action):
+    @property
+    def safety_checker(self):
+        return self._safety_checker
+
+    @safety_checker.setter
+    def safety_checker(self, value):
+        self._safety_checker = value
+        if value:
+            self._safety_checker.to(self.device)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._safety_checker = None
+        self._controlnet = None
+        self.txt2img = None
+        self.img2img = None
+        self.pix2pix = None
+        self.outpaint = None
+        self.depth2img = None
+        self.superresolution = None
+        self.txt2vid = None
+        self.upscale = None
+
+    def initialize_safety_checker(self):
+        if not hasattr(self.pipe, "safety_checker") or not self.pipe.safety_checker:
+            from diffusers.pipelines.stable_diffusion import StableDiffusionSafetyChecker
+            safety_checker = StableDiffusionSafetyChecker.from_pretrained(
+                "CompVis/stable-diffusion-safety-checker")
+            from transformers import AutoFeatureExtractor
+            feature_extractor = AutoFeatureExtractor.from_pretrained(
+                "CompVis/stable-diffusion-safety-checker")
+            self.pipe.safety_checker = safety_checker
+            self.pipe.feature_extractor = feature_extractor
+
+    def load_safety_checker(self):
+        if not self.pipe:
+            return
         if not self.do_nsfw_filter:
             self.pipe.safety_checker = None
         else:
@@ -769,6 +805,7 @@ class SDRunner(
             logger.info(f"Setting up controlnet")
             args = self.load_controlnet_arguments(**args)
 
+        self.load_safety_checker()
         return self.pipe(**args)
 
     def prepare_extra_args(self, data, image, mask):
@@ -1038,9 +1075,7 @@ class SDRunner(
                 controlnet=self.controlnet(),
                 scheduler=pipeline.scheduler,
                 safety_checker=pipeline.safety_checker,
-                feature_extractor=pipeline.feature_extractor,
-                requires_safety_checker=self.do_nsfw_filter
-
+                feature_extractor=pipeline.feature_extractor
             )
             self.controlnet_loaded = True
             return pipeline
@@ -1055,13 +1090,6 @@ class SDRunner(
         )
         # self.load_controlnet_scheduler()
         return controlnet
-
-    # def load_controlnet_scheduler(self):
-    #     from diffusers import UniPCMultistepScheduler
-    #     self.pipe.scheduler = UniPCMultistepScheduler.from_config(self.pipe.scheduler.config)
-    #     if self.enable_model_cpu_offload:
-    #         logger.info("Loading controlnet scheduler")
-    #         self.pipe.enable_model_cpu_offload()
 
     def preprocess_for_controlnet(self, image):
         if self.current_controlnet_type != self.controlnet_type or not self.processor:
@@ -1088,15 +1116,8 @@ class SDRunner(
     # end controlnet methods
 
     # Model methods
-    def unload_unused_models(self, skip_model=None):
-        """
-        Unload all models except the one specified in skip_model
-        :param skip_model: do not unload this model (typically the one currently in use)
-        :return:
-        """
-        logger.info("Unloading existing model")
-        do_clear_memory = False
-        for model_type in [
+    def unload_unused_models(self):
+        for action in [
             "txt2img",
             "img2img",
             "pix2pix",
@@ -1105,21 +1126,21 @@ class SDRunner(
             "superresolution",
             "txt2vid",
             "upscale",
+            "_controlnet",
+            "safety_checker",
         ]:
-            if skip_model is None or skip_model != model_type:
-                model = self.__getattribute__(model_type)
-                if model is not None:
-                    self.__setattr__(model_type, None)
-                    do_clear_memory = True
-        if do_clear_memory:
-            self.clear_memory()
+            val = getattr(self, action)
+            if val:
+                val.to("cpu")
+                setattr(self, action, None)
+                del val
+        self.clear_memory()
 
     def _load_ckpt_model(
         self,
         path=None,
         is_safetensors=False,
         data_type=None,
-        do_nsfw_filter=False,
         device=None,
         scheduler_name=None
     ):
@@ -1130,7 +1151,6 @@ class SDRunner(
             pipeline = self.download_from_original_stable_diffusion_ckpt(
                 path=path,
                 is_safetensors=is_safetensors,
-                do_nsfw_filter=do_nsfw_filter,
                 device=device,
                 scheduler_name=scheduler_name
             )
@@ -1142,8 +1162,6 @@ class SDRunner(
         pipeline.vae.to(data_type)
         pipeline.text_encoder.to(data_type)
         pipeline.unet.to(data_type)
-        if self.do_nsfw_filter:
-            pipeline.safety_checker.half()
         return pipeline
 
     def download_from_original_stable_diffusion_ckpt(
@@ -1152,7 +1170,6 @@ class SDRunner(
         path=None,
         is_safetensors=False,
         scheduler_name=None,
-        do_nsfw_filter=False,
         device=None
     ):
         from diffusers.pipelines.stable_diffusion.convert_from_ckpt import \
@@ -1185,7 +1202,6 @@ class SDRunner(
                 device=device,
                 scheduler_type="ddim",
                 from_safetensors=is_safetensors,
-                load_safety_checker=do_nsfw_filter,
                 local_files_only=self.local_files_only,
                 pipeline_class=self.action_diffuser,
             )
@@ -1202,7 +1218,6 @@ class SDRunner(
                     path=path,
                     is_safetensors=is_safetensors,
                     scheduler_name=scheduler_name,
-                    do_nsfw_filter=do_nsfw_filter,
                     device=device
                 )
             else:
@@ -1264,31 +1279,26 @@ class SDRunner(
                 return
             elif self.is_ckpt_model or self.is_safetensors:
                 logger.info("Loading ckpt or safetensors model")
-                self.pipe = self._load_ckpt_model(
-                    is_safetensors=self.is_safetensors,
-                    do_nsfw_filter=self.do_nsfw_filter
-                )
+                self.pipe = self._load_ckpt_model(is_safetensors=self.is_safetensors)
             else:
                 logger.info(f"Loading {self.model_path} from diffusers pipeline")
                 if self.is_superresolution:
                     kwargs["low_res_scheduler"] = self.load_scheduler(force_scheduler_name="DDPM")
                 kwargs["local_files_only"] = self.local_files_only
                 kwargs["use_auth_token"] = self.data["options"]["hf_token"]
-                if not self.do_nsfw_filter:
-                    kwargs["safety_checker"] = None
                 if self.enable_controlnet:
                     kwargs["controlnet"] = self.controlnet()
                 self.pipe = self.action_diffuser.from_pretrained(
                     self.model_path,
                     **kwargs
                 )
+                self.initialize_safety_checker()
                 if self.enable_controlnet:
                     self.controlnet_loaded = True
                 if self.is_upscale:
                     self.pipe.scheduler = self.load_scheduler(force_scheduler_name="Euler")
 
-            if hasattr(self.pipe, "safety_checker") and self.do_nsfw_filter:
-                self.safety_checker = self.pipe.safety_checker
+            self.safety_checker = self.pipe.safety_checker
 
         # store the model_path
         self.pipe.model_path = self.model_path
