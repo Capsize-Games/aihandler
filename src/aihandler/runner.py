@@ -5,7 +5,7 @@ import requests
 from controlnet_aux.processor import Processor
 from aihandler.base_runner import BaseRunner
 from aihandler.mixins.kandinsky_mixin import KandinskyMixin
-from aihandler.prompt_weight_bridge import PromptWeightBridge
+from aihandler.prompt_parser import PromptParser
 from aihandler.qtvar import ImageVar
 import traceback
 import torch
@@ -41,16 +41,7 @@ class SDRunner(
     _current_sample = 0
     _reload_model: bool = False
     do_cancel = False
-    safety_checker = None
     current_model_branch = None
-    txt2img = None
-    img2img = None
-    pix2pix = None
-    outpaint = None
-    depth2img = None
-    superresolution = None
-    txt2vid = None
-    upscale = None
     state = None
     _local_files_only = True
     lora_loaded = False
@@ -68,7 +59,6 @@ class SDRunner(
     reload_model = False
 
     # controlnet atributes
-    _controlnet = None
     processor = None
     current_controlnet_type = None
     controlnet_loaded = False
@@ -105,7 +95,7 @@ class SDRunner(
             return "lllyasviel/control_v11p_sd15_lineart"
         elif self.controlnet_type == "lineart_anime":
             return "lllyasviel/control_v11p_sd15s2_lineart_anime"
-        elif self.controlnet_type == [
+        elif self.controlnet_type in [
             "openpose", "openpose_face", "openpose_faceonly",
             "openpose_full", "openpose_hand"
         ]:
@@ -121,6 +111,7 @@ class SDRunner(
             return "lllyasviel/control_v11p_sd15_inpaint"
         elif self.controlnet_type == "shuffle":
             return "lllyasviel/control_v11e_sd15_shuffle"
+        raise Exception("Unknown controlnet type %s" % self.controlnet_type)
         # end controlnet properties
 
     @property
@@ -229,9 +220,8 @@ class SDRunner(
 
     @property
     def prompt(self):
-        prompt = self.options.get(f"{self.action}_prompt")
-        if self.use_prompt_converter:
-            prompt = PromptWeightBridge.convert(prompt)
+        prompt = self.options.get(f"{self.action}_prompt", "")
+        prompt = PromptParser.parse(None, prompt)
         if self.deterministic_seed:
             prompt = [prompt + f", {self.random_word()}" for _t in range(4)]
         elif self.deterministic_generation:
@@ -241,11 +231,11 @@ class SDRunner(
 
     @property
     def negative_prompt(self):
-        negative_prompt = self.options.get(f"{self.action}_negative_prompt")
-        if self.use_prompt_converter:
-            negative_prompt = PromptWeightBridge.convert(negative_prompt)
+        negative_prompt = self.options.get(f"{self.action}_negative_prompt", "")
+        negative_prompt = PromptParser.parse(None, negative_prompt)
         if self.deterministic_generation:
             negative_prompt = [negative_prompt for t in range(4)]
+        self.requested_data[f"{self.action}_negative_prompt"] = negative_prompt
         return negative_prompt
 
     @property
@@ -338,7 +328,7 @@ class SDRunner(
 
     @property
     def use_compel(self):
-        return not self.use_enable_sequential_cpu_offload and not self.is_txt2vid
+        return not self.use_enable_sequential_cpu_offload and not self.is_txt2vid and not self.is_sd_xl
 
     @property
     def use_tiled_vae(self):
@@ -359,6 +349,10 @@ class SDRunner(
     @property
     def model_base_path(self):
         return self.options.get("model_base_path", None)
+
+    @property
+    def is_sd_xl(self):
+        return self.model == "Stable Diuffions XL 0.9"
 
     @property
     def model(self):
@@ -574,6 +568,8 @@ class SDRunner(
             StableDiffusionDepth2ImgPipeline,
             StableDiffusionUpscalePipeline,
             StableDiffusionLatentUpscalePipeline,
+            StableDiffusionXLPipeline,
+            StableDiffusionXLImg2ImgPipeline
         )
 
         if (self.enable_controlnet
@@ -581,6 +577,11 @@ class SDRunner(
             and not self.is_safetensors):
             return self.controlnet_action_diffuser
 
+        if self.is_sd_xl:
+            if self.is_txt2img:
+                return StableDiffusionXLPipeline
+            elif self.is_img2img:
+                return StableDiffusionXLImg2ImgPipeline
         if self.is_txt2img:
             return StableDiffusionPipeline
         elif self.is_img2img:

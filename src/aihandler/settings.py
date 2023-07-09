@@ -119,6 +119,11 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
 UPSCALERS = ["None", "Lanczos"]
 MODELS = {
     "stablediffusion_generate": {
+        "Stable Diuffions XL 0.9":
+        {
+            "path": "stabilityai/stable-diffusion-xl-base-0.9",
+            "branch": "fp16"
+        },
         "Stable Diffusion V2.1": {
             "path": "stabilityai/stable-diffusion-2-1-base",
             "branch": "fp16",
