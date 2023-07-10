@@ -221,7 +221,7 @@ class SDRunner(
     @property
     def prompt(self):
         prompt = self.options.get(f"{self.action}_prompt", "")
-        prompt = PromptParser.parse(None, prompt)
+        prompt = PromptParser.parse(None, None, prompt)
         if self.deterministic_seed:
             prompt = [prompt + f", {self.random_word()}" for _t in range(4)]
         elif self.deterministic_generation:
@@ -232,7 +232,7 @@ class SDRunner(
     @property
     def negative_prompt(self):
         negative_prompt = self.options.get(f"{self.action}_negative_prompt", "")
-        negative_prompt = PromptParser.parse(None, negative_prompt)
+        negative_prompt = PromptParser.parse(None, None, negative_prompt)
         if self.deterministic_generation:
             negative_prompt = [negative_prompt for t in range(4)]
         self.requested_data[f"{self.action}_negative_prompt"] = negative_prompt
