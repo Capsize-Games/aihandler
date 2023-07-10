@@ -292,6 +292,7 @@ class RunAISettings(BaseSettings):
         self.use_prompt_builder_checkbox = BooleanVar(app, False)
 
         self.auto_prompt_weight = FloatVar(app, 0.5)
+        self.auto_negative_prompt_weight = FloatVar(app, 0.5)
         self.negative_auto_prompt_weight = FloatVar(app, 0.5)
         self.prompt_generator_basic_category = StringVar(app, "")
         self.prompt_generator_advanced_category = StringVar(app, "")
