@@ -145,17 +145,78 @@ class SettingsManager:
         self.settings.current_tool.set(val)
 
 
-class PromptManager(SettingsManager):
+class PromptManager:
+    _instance = None
+    app = None
+    settings = None
+    save_disabled = False
+
     @property
     def file_name(self):
         return "airunner.prompts.json"
+
+    def __new__(cls, app=None):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.__init__(app=app)
+        cls.app = app
+        return cls._instance
 
     def __init__(self, app=None):
         # if not app:
         #     raise Exception("SettingsManager must be initialized with an app")
         self.settings = PromptSettings(app=self)
         self.settings.initialize(self.settings.read())
+        self.font_name = "song ti"
+        self.font_size = 9
         try:
             self.load_settings()
         except Exception as e:
             self.save_settings()
+
+    def disable_save(self):
+        self.save_disabled = True
+
+    def enable_save(self):
+        self.save_disabled = False
+
+    def save_settings(self):
+        if self.save_disabled:
+            return
+        settings = {}
+        for key, value in self.settings.__dict__.items():
+            if isinstance(value, Var):
+                """
+                TODO: extensions
+                if key in ["available_extensions", "active_extensions"]:
+                    continue
+                elif key == "enabled_extensions":
+                    enabled_ext = []
+                    for ext in value.get():
+                        enabled_ext.append(ext)
+                    settings[key] = enabled_ext
+                else:
+                    settings[key] = value.get()
+                """
+                settings[key] = value.get()
+            elif type(value) in [list, dict, int, float, str, bool]:
+                settings[key] = value
+        HOME = os.path.expanduser("~")
+        f = open(os.path.join(HOME, self.file_name), "w")
+        json.dump(settings, f)
+
+    def load_settings(self):
+        self.disable_save()
+        HOME = os.path.expanduser("~")
+        f = open(os.path.join(HOME, self.file_name), "r")
+        try:
+            settings = json.load(f)
+        except Exception as e:
+            settings = {}
+        for key in settings.keys():
+            value = settings[key]
+            try:
+                self.settings.__dict__[key].set(value)
+            except Exception as e:
+                self.settings.__dict__[key] = value
+        self.enable_save()
