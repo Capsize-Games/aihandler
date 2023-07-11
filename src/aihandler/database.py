@@ -225,6 +225,7 @@ class RunAISettings(BaseSettings):
         self.pix2pix_model_path = StringVar(app)
         self.outpaint_model_path = StringVar(app)
         self.upscale_model_path = StringVar(app)
+        self.txt2vid_model_path = StringVar(app)
 
         self.mask_brush_size = IntVar(app, 10)
 
