@@ -268,6 +268,14 @@ MODELS = {
         }
     },
     "stablediffusion_txt2vid":  {
+        "Zeroscope v2": {
+            "path": "cerspense/zeroscope_v2_576w",
+            "branch": "fp16",
+        },
+        "Zeroscope v2 XL": {
+            "path": "cerspense/zeroscope_v2_XL",
+            "branch": "fp16",
+        },
         "damo-vilab": {
             "path": "damo-vilab/text-to-video-ms-1.7b",
             "branch": "fp16",
