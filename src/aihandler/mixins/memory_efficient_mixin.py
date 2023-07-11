@@ -134,6 +134,9 @@ class MemoryEfficientMixin:
         """
         return
 
+    def enable_memory_chunking(self):
+        self.pipe.unet.enable_forward_chunking(chunk_size=1, dim=1)
+
     def move_pipe_to_cuda(self, pipe):
         if not self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
             logger.info("Moving to cuda")
@@ -169,6 +172,8 @@ class MemoryEfficientMixin:
     def apply_memory_efficient_settings(self):
         logger.info("Applying memory efficient settings")
         self.apply_last_channels()
+        if self.is_txt2vid:
+            self.enable_memory_chunking()
         self.apply_vae_slicing()
         self.apply_cpu_offload()
         self.apply_model_offload()
