@@ -84,7 +84,11 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
     "vid2vid": SCHEDULERS,
     "outpaint": SCHEDULERS,
     "upscale": [EULER],
-    "superresolution": [DDIM, LMS, PLMS],
+    "superresolution": [
+        DDIM,
+        LMS,
+        PLMS
+    ],
     "controlnet": SCHEDULERS,
     "txt2vid": [DPM_PP_2M],
     "kandinsky_txt2img": [

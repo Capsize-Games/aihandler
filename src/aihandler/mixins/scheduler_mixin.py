@@ -22,7 +22,8 @@ class SchedulerMixin:
         "DDPM": "DDPMScheduler",
         "DEIS": "DEISMultistepScheduler",
         "DPM 2M SDE Karras": "DPMSolverMultistepScheduler",
-        "PNDM": "PNDMScheduler",
+        "PLMS": "PNDMScheduler",
+        "DPM": "DPMSolverMultistepScheduler",
 
         "DDIM Inverse": "DDIMInverseScheduler",
         "IPNM": "IPNDMScheduler",
