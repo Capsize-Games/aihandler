@@ -19,7 +19,7 @@ class KandinskyMixin:
         self.load_kandinsky_pipe_prior()
         image_embeds, negative_image_embeds = self.get_kandinsky_image_emebds()
         self.load_kandinsky_model()
-        generator = torch.Generator(device=self.device).manual_seed(self.seed)
+        generator = self.generator()
         args = {
             "prompt": self.prompt,
             "negative_prompt": self.negative_prompt,
@@ -52,7 +52,7 @@ class KandinskyMixin:
         self.current_model = None
 
     def get_kandinsky_image_emebds(self):
-        generator = torch.Generator(device=self.device).manual_seed(self.seed)
+        generator = self.generator()
         if self.use_interpolation:
             interpolation_prompt = []
             weights = []

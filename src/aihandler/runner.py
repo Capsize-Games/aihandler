@@ -611,7 +611,7 @@ class SDRunner(
 
     @property
     def data_type(self):
-        data_type = torch.half if self.cuda_is_available else torch.float
+        data_type = torch.float16 if self.cuda_is_available else torch.float
         return data_type
 
     @property
@@ -640,6 +640,11 @@ class SDRunner(
             self._load_model()
             self.reload_model = False
             self.initialized = True
+
+    def generator(self, device=None, seed=None):
+        device = self.device if not device else device
+        seed = self.seed if not seed else seed
+        return torch.Generator(device=device).manual_seed(seed)
 
     def prepare_options(self, data):
         self.set_message(f"Preparing options...")
@@ -795,9 +800,9 @@ class SDRunner(
         if self.deterministic_generation:
             if self.is_txt2img:
                 if self.deterministic_seed:
-                    generator = [torch.Generator(device=self.device).manual_seed(self.seed) for _i in range(4)]
+                    generator = [self.generator() for _i in range(4)]
                 else:
-                    generator = [torch.Generator(device=self.device).manual_seed(self.seed+i) for i in range(4)]
+                    generator = [self.generator(self.seed+i) for i in range(4)]
                 args["generator"] = generator
             if not self.is_upscale and not self.is_superresolution and not self.is_txt2vid:
                 args["num_images_per_prompt"] = 1
@@ -1236,12 +1241,13 @@ class SDRunner(
         else:
             kwargs = {
                 "torch_dtype": self.data_type,
-                "scheduler": self.load_scheduler(),
-                # "low_cpu_mem_usage": True, # default is already set to true
-                "variant": self.current_model_branch
+                "scheduler": self.load_scheduler()
             }
+
             if self.current_model_branch:
                 kwargs["variant"] = self.current_model_branch
+            elif self.data_type == torch.float16:
+                kwargs["variant"] = "fp16"
 
         do_load_controlnet = (
             (not self.controlnet_loaded and self.enable_controlnet) or
