@@ -481,7 +481,7 @@ class SDRunner(
 
     @property
     def controlnet_conditioning_scale(self):
-        return self.options.get(f"{self.action}_controlnet_conditioning_scale", 100) / 100.0
+        return self.options.get(f"{self.action}_controlnet_conditioning_scale", 1000) / 1000.0
 
     @property
     def controlnet_guess_mode(self):
@@ -701,10 +701,13 @@ class SDRunner(
         if not hasattr(self.pipe, "safety_checker") or not self.pipe.safety_checker:
             from diffusers.pipelines.stable_diffusion import StableDiffusionSafetyChecker
             safety_checker = StableDiffusionSafetyChecker.from_pretrained(
-                "CompVis/stable-diffusion-safety-checker")
+                "CompVis/stable-diffusion-safety-checker",
+                local_files_only=self.local_files_only
+            )
             from transformers import AutoFeatureExtractor
             feature_extractor = AutoFeatureExtractor.from_pretrained(
-                "CompVis/stable-diffusion-safety-checker")
+                "CompVis/stable-diffusion-safety-checker",
+                local_files_only=self.local_files_only)
             self.pipe.safety_checker = safety_checker
             self.pipe.feature_extractor = feature_extractor
 
