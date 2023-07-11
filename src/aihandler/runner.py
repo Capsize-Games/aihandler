@@ -1149,7 +1149,8 @@ class SDRunner(
         is_safetensors=False,
         data_type=None,
         device=None,
-        scheduler_name=None
+        scheduler_name=None,
+        local_files_only=None,
     ):
         logger.debug(f"Loading ckpt file, is safetensors {is_safetensors}")
         if not data_type:
@@ -1159,7 +1160,8 @@ class SDRunner(
                 path=path,
                 is_safetensors=is_safetensors,
                 device=device,
-                scheduler_name=scheduler_name
+                scheduler_name=scheduler_name,
+                local_files_only=local_files_only,
             )
         except Exception as e:
             self.error_handler("Unable to load ckpt file")
@@ -1177,8 +1179,11 @@ class SDRunner(
         path=None,
         is_safetensors=False,
         scheduler_name=None,
-        device=None
+        device=None,
+        local_files_only=None,
     ):
+        if local_files_only is None:
+            local_files_only = self.local_files_only
         from diffusers.pipelines.stable_diffusion.convert_from_ckpt import \
             download_from_original_stable_diffusion_ckpt
         if not scheduler_name:
@@ -1209,7 +1214,7 @@ class SDRunner(
                 device=device,
                 scheduler_type="ddim",
                 from_safetensors=is_safetensors,
-                local_files_only=self.local_files_only,
+                local_files_only=local_files_only,
                 pipeline_class=self.action_diffuser,
             )
             if self.enable_controlnet:
@@ -1286,19 +1291,24 @@ class SDRunner(
                 self.pipe = self._load_ckpt_model(is_safetensors=self.is_safetensors)
             else:
                 logger.info(f"Loading {self.model_path} from diffusers pipeline")
+
+                kwargs.update({
+                    "local_files_only": self.local_files_only,
+                    "use_auth_token": self.data["options"]["hf_token"],
+                })
+
                 if self.is_superresolution:
                     kwargs["low_res_scheduler"] = self.load_scheduler(force_scheduler_name="DDPM")
-                kwargs["local_files_only"] = self.local_files_only
-                kwargs["use_auth_token"] = self.data["options"]["hf_token"]
+
                 if self.enable_controlnet:
                     kwargs["controlnet"] = self.controlnet()
+
                 self.pipe = self.action_diffuser.from_pretrained(
-                    self.model_path,
-                    **kwargs
-                )
+                    self.model_path, **kwargs)
                 self.initialize_safety_checker()
-                if self.enable_controlnet:
-                    self.controlnet_loaded = True
+                self.controlnet_loaded = self.enable_controlnet
+
+                force_scheduler_name = None
                 if self.is_upscale:
                     self.pipe.scheduler = self.load_scheduler(force_scheduler_name="Euler")
 
