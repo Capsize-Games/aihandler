@@ -91,7 +91,7 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
         PLMS
     ],
     "controlnet": SCHEDULERS,
-    "txt2vid": [DPM_PP_2M],
+    "txt2vid": SCHEDULERS,
     "kandinsky_txt2img": [
         EULER_ANCESTRAL,
         DPM2_A_K,
@@ -120,6 +120,12 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
         DPM_PP_2M_SDE_K,
         DDIM,
     ],
+    "shapegif_txt2img": [
+        HEUN,
+    ],
+    "shapegif_img2img": [
+        HEUN,
+    ]
 }
 UPSCALERS = ["None", "Lanczos"]
 MODELS = {
@@ -304,6 +310,16 @@ MODELS = {
             "branch": "fp16",
         },
     },
+    "shapegif_generate": {
+        "shap-e": {
+            "path": "openai/shap-e",
+            "branch": "fp16",
+        },
+        "shap-e-img2img": {
+            "path": "openai/shap-e-img2img",
+            "branch": "fp16",
+        }
+    }
 }
 TEXT_MODELS = {
     "flan-t5-xxl": {

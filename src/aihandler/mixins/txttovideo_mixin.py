@@ -1,6 +1,8 @@
 import os
+import imageio
 import numpy as np
 from PIL import Image
+from aihandler.logger import logger
 
 
 class TexttovideoMixin:
@@ -70,6 +72,22 @@ class TexttovideoMixin:
                 # convert to numpy array and add to new_video_frames
                 new_video_frames.append(np.array(image))
         return new_video_frames if len(new_video_frames) > 0 else video_frames
+
+    def handle_zeroshot_output(self, output):
+        if self.enable_controlnet:
+            result = output["frames"]
+        else:
+            result = np.concatenate(output["frames"])
+            result = [(r * 255).astype("uint8") for r in result]
+        logger.info(f"Saving video to {self.txt2vid_file}")
+        imageio.mimsave(self.txt2vid_file, result, format="FFMPEG", codec="libx264")
+
+        #print type of result
+        print(type(result[0]))
+        print(result[0])
+        logger.info(f"Save complete")
+        pil_image = Image.fromarray(result[0])
+        return pil_image, None
 
     def handle_txt2vid_output(self, output):
         pil_image = None

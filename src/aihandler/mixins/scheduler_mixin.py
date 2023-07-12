@@ -42,6 +42,8 @@ class SchedulerMixin:
     def scheduler_section(self):
         if self.use_kandinsky:
             return f"kandinsky_{self.action}"
+        elif self.is_shapegif:
+            return f"shapegif_{self.action}"
         return self.action
 
     def clear_scheduler(self):

@@ -52,6 +52,7 @@ DEFAULT_GENERATOR_SETTINGS = {
     "controlnet_var": "",
     "enable_controlnet": False,
     "controlnet_guidance_scale": 50,
+    "zeroshot": False,
 }
 GENERATOR_TYPES = {
     "prompt": StringVar,
@@ -76,6 +77,7 @@ GENERATOR_TYPES = {
     "controlnet_var": StringVar,
     "enable_controlnet": BooleanVar,
     "controlnet_guidance_scale": IntVar,
+    "zeroshot": BooleanVar,
 }
 USER = os.environ.get("USER", "")
 default_model_path = os.path.join("/", "home", USER, "stablediffusion")
@@ -95,6 +97,8 @@ GENERATORS = [
     "kandinsky_img2img",
     "kandinsky_inpaint",
     "kandinsky_outpaint",
+    "shapegif_txt2img",
+    "shapegif_img2img",
 ]
 
 class PropertyBase:
@@ -144,6 +148,8 @@ class BaseSettings(PropertyBase):
             namespace = self.namespace
             if self.generator == "kandinsky":
                 namespace = f"kandinsky_{namespace}"
+            if self.generator == "shapegif":
+                namespace = f"shapegif_{namespace}"
             if name.startswith(namespace):
                 raise e
             else:
@@ -261,6 +267,7 @@ class RunAISettings(BaseSettings):
         # Image export preferences
         self.auto_export_images = BooleanVar(app)
         self.image_path = StringVar(app, "")
+        self.gif_path = StringVar(app, "")
         self.image_export_type = StringVar(app, "png")
 
         # Video export preferences

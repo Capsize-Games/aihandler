@@ -3,6 +3,7 @@ import gc
 import numpy as np
 import requests
 from controlnet_aux.processor import Processor
+from diffusers.utils import export_to_gif
 from aihandler.base_runner import BaseRunner
 from aihandler.mixins.kandinsky_mixin import KandinskyMixin
 from aihandler.prompt_parser import PromptParser
@@ -289,7 +290,10 @@ class SDRunner(
 
     @property
     def use_compel(self):
-        return not self.use_enable_sequential_cpu_offload and not self.is_txt2vid and not self.is_sd_xl
+        return not self.use_enable_sequential_cpu_offload and \
+               not self.is_txt2vid and \
+               not self.is_sd_xl and \
+               not self.is_shapegif
 
     @property
     def use_tiled_vae(self):
@@ -341,8 +345,20 @@ class SDRunner(
         return self.action == "txt2img"
 
     @property
+    def is_zeroshot(self):
+        return self.options.get("zeroshot", False) == True
+
+    @property
+    def is_shapegif(self):
+        return self.options.get(f"generator_section") == "shapegif"
+
+    @property
     def is_txt2vid(self):
         return self.action == "txt2vid"
+
+    @property
+    def is_vid2vid(self):
+        return self.action == "vid2vid"
 
     @property
     def is_upscale(self):
@@ -509,7 +525,7 @@ class SDRunner(
             StableDiffusionControlNetImg2ImgPipeline,
             StableDiffusionControlNetInpaintPipeline,
         )
-        if self.is_txt2img:
+        if self.is_txt2img or self.is_zeroshot:
             return StableDiffusionControlNetPipeline
         elif self.is_img2img:
             return StableDiffusionControlNetImg2ImgPipeline
@@ -530,7 +546,10 @@ class SDRunner(
             StableDiffusionUpscalePipeline,
             StableDiffusionLatentUpscalePipeline,
             StableDiffusionXLPipeline,
-            StableDiffusionXLImg2ImgPipeline
+            StableDiffusionXLImg2ImgPipeline,
+            TextToVideoSDPipeline,
+            VideoToVideoSDPipeline,
+            TextToVideoZeroPipeline
         )
 
         if (self.enable_controlnet
@@ -543,9 +562,9 @@ class SDRunner(
                 return StableDiffusionXLPipeline
             elif self.is_img2img:
                 return StableDiffusionXLImg2ImgPipeline
-        if self.is_txt2img:
+        if self.is_txt2img and not self.is_shapegif:
             return StableDiffusionPipeline
-        elif self.is_img2img:
+        elif self.is_img2img and not self.is_shapegif:
             return StableDiffusionImg2ImgPipeline
         elif self.is_pix2pix:
             return StableDiffusionInstructPix2PixPipeline
@@ -555,12 +574,18 @@ class SDRunner(
             return StableDiffusionDepth2ImgPipeline
         elif self.is_superresolution:
             return StableDiffusionUpscalePipeline
+        elif self.is_txt2vid and self.is_zeroshot:
+            return TextToVideoZeroPipeline
         elif self.is_txt2vid:
-            return DiffusionPipeline
+            return TextToVideoSDPipeline
+        elif self.is_vid2vid:
+            return VideoToVideoSDPipeline
         elif self.is_upscale:
             return StableDiffusionLatentUpscalePipeline
+        elif self.is_shapegif:
+            return DiffusionPipeline
         else:
-            raise ValueError("Invalid action")
+            return DiffusionPipeline
 
     @property
     def is_ckpt_model(self):
@@ -702,13 +727,18 @@ class SDRunner(
             self.log_error(error_message)
             output = None
 
+        if self.is_zeroshot:
+            return self.handle_zeroshot_output(output)
         if self.is_txt2vid:
             return self.handle_txt2vid_output(output)
         else:
             nsfw_content_detected = None
             images = None
             if output:
-                images = output.images
+                try:
+                    images = output.images
+                except AttributeError:
+                    pass
                 if self.action_has_safety_checker:
                     try:
                         nsfw_content_detected = output.nsfw_content_detected
@@ -736,21 +766,30 @@ class SDRunner(
                 self.reload_model = True
                 return
         if self.is_upscale:
-            args["prompt"] = self.prompt
-            args["negative_prompt"] = self.negative_prompt
-            args["image"] = kwargs.get("image")
-            args["generator"] = torch.manual_seed(self.seed)
+            args.update({
+                "prompt": self.prompt,
+                "negative_prompt": self.negative_prompt,
+                "image": kwargs.get("image"),
+                "generator": torch.manual_seed(self.seed),
+            })
         elif self.is_txt2vid:
-            args["num_frames"] = self.batch_size
-            args["prompt"] = self.prompt
-            args["negative_prompt"] = self.negative_prompt
+            args.update({
+                "prompt": self.prompt,
+                "negative_prompt": self.negative_prompt,
+            })
+            if not self.is_zeroshot:
+                args["num_frames"] = self.batch_size
         elif not self.use_kandinsky:
             if self.use_compel:
-                args["prompt_embeds"] = self.prompt_embeds
-                args["negative_prompt_embeds"] = self.negative_prompt_embeds
+                args.update({
+                    "prompt_embeds": self.prompt_embeds,
+                    "negative_prompt_embeds": self.negative_prompt_embeds,
+                })
             else:
-                args["prompt"] = self.prompt
-                args["negative_prompt"] = self.negative_prompt
+                args.update({
+                    "prompt": self.prompt,
+                    "negative_prompt": self.negative_prompt,
+                })
         if not self.is_upscale:
             args.update(kwargs)
         if self.use_kandinsky:
@@ -773,13 +812,109 @@ class SDRunner(
             args = self.load_controlnet_arguments(**args)
 
         self.load_safety_checker()
+
+        if self.is_zeroshot:
+            return self.call_pipe_zeroshot(**args)
+
+        if self.is_shapegif:
+            return self.call_shapegif_pipe()
+
         return self.pipe(**args)
+
+    def call_shapegif_pipe(self):
+        kwargs = {
+            "num_images_per_prompt": 1,
+            "num_inference_steps": self.steps,
+            "generator": self.generator(),
+            "guidance_scale": self.guidance_scale,
+            "frame_size": self.width,
+        }
+
+        if self.is_txt2img:
+            kwargs["prompt"] = self.prompt
+            kwargs["negative_prompt"] = self.negative_prompt
+
+        if self.is_img2img:
+            kwargs["image"] = self.image
+
+        images = self.pipe(**kwargs).images
+
+        try:
+            path = self.settings_manager.settings.gif_path.get()
+        except AttributeError:
+            path = None
+
+        if not path or path == "":
+            try:
+                path = self.settings_manager.settings.image_path.get()
+            except AttributeError:
+                path = None
+
+        if not path or path == "":
+            try:
+                path = self.settings_manager.settings.model_base_path.get()
+            except AttributeError:
+                path = None
+
+        if not path or path == "":
+            raise Exception("No path to save images found")
+
+        for image in images:
+            export_to_gif(
+                image,
+                os.path.join(
+                    path,
+                    f"{self.prompt}_{self.seed}.gif")
+            )
+        return {
+            "images": None,
+            "nsfw_content_detected": None,
+        }
+
+    def call_pipe_zeroshot(self, **kwargs):
+        video_length = self.batch_size
+        chunk_size = 4
+        prompt = kwargs["prompt"]
+        negative_prompt = kwargs["negative_prompt"]
+
+        # kwargs["output_type"] = "numpy"
+        kwargs["generator"] = self.generator()
+
+        # Generate the video chunk-by-chunk
+        result = []
+        chunk_ids = np.arange(0, video_length, chunk_size - 1)
+
+        generator = self.generator()
+        for i in range(len(chunk_ids)):
+            ch_start = chunk_ids[i]
+            ch_end = video_length if i == len(chunk_ids) - 1 else chunk_ids[i + 1]
+            frame_ids = [0] + list(range(ch_start, ch_end))
+            try:
+                output = self.pipe(
+                    prompt=prompt,
+                    width=self.width,
+                    height=self.height,
+                    num_inference_steps=self.steps,
+                    guidance_scale=self.guidance_scale,
+                    negative_prompt=negative_prompt,
+                    video_length=len(frame_ids),
+                    callback=self.callback,
+                    motion_field_strength_x=12,
+                    motion_field_strength_y=12,
+                    generator=generator,
+                    frame_ids=frame_ids
+                )
+            except Exception as e:
+                self.error_handler(e)
+                return None
+            result.append(output.images[1:])
+        return {"frames": result}
 
     def prepare_extra_args(self, data, image, mask):
         action = self.action
         extra_args = {
         }
-        if action == "txt2img":
+        if action == "txt2img" or action == "txt2vid":
             extra_args = {**extra_args, **{
                 "width": self.width,
                 "height": self.height,
@@ -1066,8 +1201,13 @@ class SDRunner(
 
     def load_controlnet_arguments(self, **kwargs):
         image_key = "image" if self.is_txt2img else "control_image"
+
+        if not self.is_txt2vid:
+            kwargs = {**kwargs, **{
+                image_key: self.preprocess_for_controlnet(self.image),
+            }}
+
         kwargs = {**kwargs, **{
-            image_key: self.preprocess_for_controlnet(self.image),
             "guess_mode": self.controlnet_guess_mode,
             "control_guidance_start": self.control_guidance_start,
             "control_guidance_end": self.control_guidance_end,
@@ -1203,10 +1343,10 @@ class SDRunner(
                 "scheduler": self.load_scheduler()
             }
 
-            if self.current_model_branch:
-                kwargs["variant"] = self.current_model_branch
-            elif self.data_type == torch.float16:
-                kwargs["variant"] = "fp16"
+        if self.current_model_branch:
+            kwargs["variant"] = self.current_model_branch
+        elif self.data_type == torch.float16:
+            kwargs["variant"] = "fp16"
 
         do_load_controlnet = (
             (not self.controlnet_loaded and self.enable_controlnet) or
@@ -1262,7 +1402,6 @@ class SDRunner(
                 self.initialize_safety_checker()
                 self.controlnet_loaded = self.enable_controlnet
 
-                force_scheduler_name = None
                 if self.is_upscale:
                     self.pipe.scheduler = self.load_scheduler(force_scheduler_name="Euler")
 
