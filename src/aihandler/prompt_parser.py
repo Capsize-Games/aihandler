@@ -9,7 +9,7 @@ class PromptParser:
     """
 
     @classmethod
-    def parse(cls, data, prompt_type, prompt, variables=None, weights=None, seed=None):
+    def parse(cls, variables, prompt_type, prompt, weights=None, seed=None):
         """
         Parses a prompt into a format that the AI can understand.
         """
@@ -17,7 +17,7 @@ class PromptParser:
         prompt = PromptWeightBridge.convert(prompt)
 
         # next we will run variable translation on the prompt
-        prompt = PromptVariable.parse(data, prompt_type, prompt, variables, weights, seed)
-        prompt = PromptVariable.parse(data, prompt_type, prompt, variables, weights, seed)
+        prompt = PromptVariable.parse(variables, prompt_type, prompt, weights, seed)
+        prompt = PromptVariable.parse(variables, prompt_type, prompt, weights, seed)
 
         return prompt

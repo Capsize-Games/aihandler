@@ -20,7 +20,7 @@ class PromptVariable:
         return data.get(variable_name, [])
 
     @classmethod
-    def get_random_value(cls, data, prompt_type=None, variable_name="", available_variables=None):
+    def get_random_value(cls, data, prompt_type=None, variable_name=""):
         """
         Gets a random value for a variable.
         :param prompt_type:
@@ -30,10 +30,7 @@ class PromptVariable:
         variable_name = variable_name.lower()
 
         # handle special case of human_name
-        if available_variables and variable_name in available_variables:
-            values = available_variables.get(variable_name, [])
-        else:
-            values = cls.get_values(data, variable_name)
+        values = cls.get_values(data, variable_name)
         if isinstance(values, dict):
             if "type" in values and values["type"] == "range":
                 return random.randint(values["min"], values["max"])
@@ -43,7 +40,7 @@ class PromptVariable:
         return ""
 
     @classmethod
-    def translate_variable(cls, data, prompt_type=None, variable="", available_variables=None, weights=None, seed=None):
+    def translate_variable(cls, data, prompt_type=None, variable="", weights=None, seed=None):
         """
         Translates a variable into a random value.
         :param prompt_type:
@@ -62,9 +59,9 @@ class PromptVariable:
 
         # get the random value
         if prompt_type:
-            random_value = cls.get_random_value(data, prompt_type, variable, available_variables)
+            random_value = cls.get_random_value(data, prompt_type, variable)
         else:
-            random_value = cls.get_random_value(data, "misc", variable, available_variables)
+            random_value = cls.get_random_value(data, "misc", variable)
         if variable == "age":
             random_value = f"{random_value} years old"
         if weights and variable in weights and (original_variable is None or original_variable != "gender_name"):
@@ -100,7 +97,7 @@ class PromptVariable:
         return f'{match.group("var")}'
 
     @classmethod
-    def parse(cls, data, prompt_type=None, prompt="", available_variables=None, weights=None, seed=None):
+    def parse(cls, data, prompt_type=None, prompt="", weights=None, seed=None):
         """
         Finds all variables in a prompt, and replaces them with random values.
         :param prompt_type:
@@ -115,7 +112,6 @@ class PromptVariable:
                 data,
                 prompt_type,
                 variable,
-                available_variables=available_variables,
                 weights=weights,
                 seed=seed
             )

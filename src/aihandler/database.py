@@ -310,6 +310,7 @@ class RunAISettings(BaseSettings):
         self.prompt_generator_advanced_style = StringVar(app, "")
         self.prompt_generator_weighted_values = DictVar(app, {})
         self.prompt_generator_basic_randomize_checkbox = BooleanVar(app, False)
+        self.prompt_generator_advanced = BooleanVar(app, False)
 
 
     def reset_settings_to_default(self):
@@ -378,6 +379,16 @@ class RunAISettings(BaseSettings):
 
         self.auto_prompt_weight.set(0.5)
         self.auto_negative_prompt_weight.set(0.5)
+        self.negative_auto_prompt_weight.set(0.5)
+        self.prompt_generator_basic_category.set("")
+        self.prompt_generator_advanced_category.set("")
+        self.prompt_generator_basic_prompt.set("")
+        self.prompt_generator_advanced_prompt.set("")
+        self.prompt_generator_basic_style.set("")
+        self.prompt_generator_advanced_style.set("")
+        self.prompt_generator_weighted_values.set({})
+        self.prompt_generator_basic_randomize_checkbox.set(False)
+        self.prompt_generator_advanced.set(False)
 
 
 class PromptSettings(BaseSettings):
