@@ -101,12 +101,15 @@ class SchedulerMixin:
                     kwargs["algorithm_type"] = "dpmsolver++"
                 else:
                     kwargs["algorithm_type"] = "dpmsolver"
-            self._scheduler = scheduler_class.from_pretrained(
-                self.model_path,
-                local_files_only=self.local_files_only,
-                use_auth_token=self.data["options"]["hf_token"],
-                **kwargs
-            )
+            try:
+                self._scheduler = scheduler_class.from_pretrained(
+                    self.model_path,
+                    local_files_only=self.local_files_only,
+                    use_auth_token=self.data["options"]["hf_token"],
+                    **kwargs
+                )
+            except NotImplementedError as e:
+                logger.error(f"Unable to load scheduler {scheduler_name} from {self.model_path}")
         return self._scheduler
 
     def _change_scheduler(self):

@@ -1242,10 +1242,8 @@ class SDRunner(
         self.torch_compile_applied = False
         self.lora_loaded = False
         self.embeds_loaded = False
-        kwargs = {
-            "torch_dtype": self.data_type,
-            "scheduler": self.load_scheduler()
-        }
+
+        kwargs = {}
 
         if self.current_model_branch:
             kwargs["variant"] = self.current_model_branch
@@ -1300,10 +1298,17 @@ class SDRunner(
 
                 if self.is_ckpt_model or self.is_safetensors:
                     self.pipe = self.action_diffuser.from_single_file(
-                        self.model_path, **kwargs)
+                        self.model_path,
+                        torch_dtype=self.data_type,
+                        **kwargs)
+                    self.pipe.scheduler = self.load_scheduler(config=self.pipe.scheduler.config)
                 else:
                     self.pipe = self.action_diffuser.from_pretrained(
-                        self.model_path, **kwargs)
+                        self.model_path,
+                        torch_dtype=self.data_type,
+                        scheduler=self.load_scheduler(),
+                        **kwargs
+                    )
                 self.initialize_safety_checker()
                 self.controlnet_loaded = self.enable_controlnet
 
