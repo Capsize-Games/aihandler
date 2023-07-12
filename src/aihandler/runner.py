@@ -633,7 +633,7 @@ class SDRunner(
         return torch.Generator(device=device).manual_seed(seed)
 
     def prepare_options(self, data):
-        self.set_message(f"Preparing options...")
+        self.send_message(f"Preparing options...")
         action = data["action"]
         options = data["options"]
         requested_model = options.get(f"{action}_model", None)
@@ -714,7 +714,7 @@ class SDRunner(
 
     def do_sample(self, **kwargs):
         logger.info(f"Sampling {self.action}")
-        self.set_message(f"Generating image...")
+        self.send_message(f"Generating image...")
 
         try:
             logger.info(f"Generating image")
