@@ -76,43 +76,36 @@ class SDRunner(
         return controlnet_type.replace(" ", "_")
 
     @property
-    def controlnet_model(self):
-        if self.controlnet_type == "canny":
-            return "lllyasviel/control_v11p_sd15_canny"
-        elif self.controlnet_type in [
-            "depth_leres", "depth_leres++", "depth_midas", "depth_zoe"
-        ]:
-            return "lllyasviel/control_v11f1p_sd15_depth"
-        elif self.controlnet_type == "mlsd":
-            return "lllyasviel/control_v11p_sd15_mlsd"
-        elif self.controlnet_type in ["normal_bae", "normal_midas"]:
-            return "lllyasviel/control_v11p_sd15_normalbae"
-        elif self.controlnet_type in ["scribble_hed", "scribble_pidinet"]:
-            return "lllyasviel/control_v11p_sd15_scribble"
-        elif self.controlnet_type == "segmentation":
-            return "lllyasviel/control_v11p_sd15_seg"
-        elif self.controlnet_type in ["lineart_coarse", "lineart_realistic"]:
-            return "lllyasviel/control_v11p_sd15_lineart"
-        elif self.controlnet_type == "lineart_anime":
-            return "lllyasviel/control_v11p_sd15s2_lineart_anime"
-        elif self.controlnet_type in [
-            "openpose", "openpose_face", "openpose_faceonly",
-            "openpose_full", "openpose_hand"
-        ]:
-            return "lllyasviel/control_v11p_sd15_openpose"
-        elif self.controlnet_type in [
-            "softedge_hed", "softedge_hedsafe",
-            "softedge_pidinet", "softedge_pidsafe"
-        ]:
-            return "lllyasviel/control_v11p_sd15_softedge"
-        elif self.controlnet_type == "pixel2pixel":
-            return "lllyasviel/control_v11e_sd15_ip2p"
-        elif self.controlnet_type == "inpaint":
-            return "lllyasviel/control_v11p_sd15_inpaint"
-        elif self.controlnet_type == "shuffle":
-            return "lllyasviel/control_v11e_sd15_shuffle"
-        raise Exception("Unknown controlnet type %s" % self.controlnet_type)
-        # end controlnet properties
+    def get_controlnet_type(self):
+        controlnet_dict = {
+            "canny": "lllyasviel/control_v11p_sd15_canny",
+            "depth_leres": "lllyasviel/control_v11f1p_sd15_depth",
+            "depth_leres++": "lllyasviel/control_v11f1p_sd15_depth",
+            "depth_midas": "lllyasviel/control_v11f1p_sd15_depth",
+            "depth_zoe": "lllyasviel/control_v11f1p_sd15_depth",
+            "mlsd": "lllyasviel/control_v11p_sd15_mlsd",
+            "normal_bae": "lllyasviel/control_v11p_sd15_normalbae",
+            "normal_midas": "lllyasviel/control_v11p_sd15_normalbae",
+            "scribble_hed": "lllyasviel/control_v11p_sd15_scribble",
+            "scribble_pidinet": "lllyasviel/control_v11p_sd15_scribble",
+            "segmentation": "lllyasviel/control_v11p_sd15_seg",
+            "lineart_coarse": "lllyasviel/control_v11p_sd15_lineart",
+            "lineart_realistic": "lllyasviel/control_v11p_sd15_lineart",
+            "lineart_anime": "lllyasviel/control_v11p_sd15s2_lineart_anime",
+            "openpose": "lllyasviel/control_v11p_sd15_openpose",
+            "openpose_face": "lllyasviel/control_v11p_sd15_openpose",
+            "openpose_faceonly": "lllyasviel/control_v11p_sd15_openpose",
+            "openpose_full": "lllyasviel/control_v11p_sd15_openpose",
+            "openpose_hand": "lllyasviel/control_v11p_sd15_openpose",
+            "softedge_hed": "lllyasviel/control_v11p_sd15_softedge",
+            "softedge_hedsafe": "lllyasviel/control_v11p_sd15_softedge",
+            "softedge_pidinet": "lllyasviel/control_v11p_sd15_softedge",
+            "softedge_pidsafe": "lllyasviel/control_v11p_sd15_softedge",
+            "pixel2pixel": "lllyasviel/control_v11e_sd15_ip2p",
+            "inpaint": "lllyasviel/control_v11p_sd15_inpaint",
+            "shuffle": "lllyasviel/control_v11e_sd15_shuffle"
+        }
+        return controlnet_dict.get(self.controlnet_type, "Invalid controlnet type")
 
     @property
     def local_files_only(self):
