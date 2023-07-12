@@ -122,6 +122,13 @@ class PromptWeightBridge:
         :param prompt:
         :return:
         """
+        # find all values surrounded by parentheses followed by :<float>
+        pattern = r"(\(([^:()]+):([0-9.]+)\))"
+        matches = re.findall(pattern, prompt)
+
+        # replace all matches with (match[0])<float>
+        for match in matches:
+            prompt = prompt.replace(match[0], f"({match[1]}){match[2]}")
 
         # find all values surrounded by parentheses followed by :<float>
         pattern = r"([^:() ]+):([0-9.]+)"
@@ -152,6 +159,28 @@ class PromptWeightBridge:
         return prompt
 
     @classmethod
+    def reduce_weights(cls, prompt):
+        """
+        Reduce all weights over 1.4 to 1.4
+        :param prompt:
+        :return:
+        """
+        pattern = r"\d\.\d{2,}"
+        matches = re.findall(pattern, prompt)
+
+        for match in matches:
+            if float(match) > 1.4:
+                prompt = prompt.replace(match, "1.4")
+
+        # also for single decimal weights
+        pattern = r"\d\.\d"
+        matches = re.findall(pattern, prompt)
+        for match in matches:
+            if float(match) > 1.4:
+                prompt = prompt.replace(match, "1.4")
+        return prompt
+
+    @classmethod
     def convert_prompt_weights(cls, prompt):
         """
         Basic conversion of prompt syntax.
@@ -168,6 +197,7 @@ class PromptWeightBridge:
         prompt = cls.convert_basic_parentheses(prompt)
         prompt = cls.convert_basic_brackets(prompt)
         prompt = cls.convert_prompt_with_weight_value(prompt)
+        prompt = cls.reduce_weights(prompt)
         return prompt
 
     @classmethod
