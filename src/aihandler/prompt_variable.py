@@ -17,7 +17,10 @@ class PromptVariable:
         :param variable_name:
         :return:
         """
-        return data.get(variable_name, [])
+        try:
+            return data.get(variable_name, [])
+        except AttributeError:
+            return []
 
     @classmethod
     def get_random_value(cls, data, prompt_type=None, variable_name=""):
