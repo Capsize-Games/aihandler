@@ -1,6 +1,7 @@
 import logging
 import os
 import platform
+from enum import Enum
 
 PLATFORM = platform.system()
 try:
@@ -405,3 +406,12 @@ LARGEST_WORKING_SIZE=2048
 SMALLEST_WORKING_SIZE=8
 BRUSH_INC_SIZE=8
 LOG_LEVEL = logging.FATAL if AIRUNNER_ENVIRONMENT == "prod" else logging.DEBUG
+
+
+class MessageCode(Enum):
+    STATUS = 100
+    ERROR = 200
+    WARNING = 300
+    PROGRESS = 400
+    IMAGE_GENERATED = 500
+    EMBEDDING_LOAD_FAILED = 600

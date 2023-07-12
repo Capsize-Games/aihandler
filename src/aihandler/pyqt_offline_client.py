@@ -74,9 +74,6 @@ class OfflineClient(QtCore.QObject):
         self.logger = logger
         self.logger.set_level(kwargs.get("log_level"))
         self.runners = kwargs.get("runners", [])
-        self.image_var = kwargs.get("image_var")
-        self.error_var = kwargs.get("error_var")
-        self.tqdm_var = kwargs.get("tqdm_var")
         self.message_var = kwargs.get("message_var")
         self.runner_type = kwargs.get("runner_type", "sd")
         self.do_start()
@@ -124,11 +121,7 @@ class OfflineClient(QtCore.QObject):
                 (action in ("inpaint", "outpaint") and self.sd_runner.action in ("txt2img", "img2img")):
             self.sd_runner.initialized = False
 
-        self.sd_runner.generator_sample(
-            data,
-            self.image_var,
-            self.error_var
-        )
+        self.sd_runner.generator_sample(data)
 
     def callback(self, data):
         action = data.get("action")

@@ -6,7 +6,6 @@ from controlnet_aux.processor import Processor
 from aihandler.base_runner import BaseRunner
 from aihandler.mixins.kandinsky_mixin import KandinskyMixin
 from aihandler.prompt_parser import PromptParser
-from aihandler.qtvar import ImageVar
 import traceback
 import torch
 from aihandler.logger import logger
@@ -18,6 +17,7 @@ from aihandler.mixins.embedding_mixin import EmbeddingMixin
 from aihandler.mixins.txttovideo_mixin import TexttovideoMixin
 from aihandler.mixins.compel_mixin import CompelMixin
 from aihandler.mixins.scheduler_mixin import SchedulerMixin
+from aihandler.settings import MessageCode
 
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
@@ -891,7 +891,7 @@ class SDRunner(
 
     requested_data = None
 
-    def generate(self, data: dict, image_var: ImageVar = None, use_callback: bool = True):
+    def generate(self, data: dict):
         logger.info("generate called")
         self.requested_data = data
         self.do_cancel = False
@@ -904,7 +904,7 @@ class SDRunner(
         self._change_scheduler()
 
         if not self.use_kandinsky:
-            self.set_message(f"Applying memory settings...")
+            self.send_message(f"Applying memory settings...")
             self.apply_memory_efficient_settings()
         if self.is_txt2vid or self.is_upscale:
             total_to_generate = 1
@@ -913,10 +913,9 @@ class SDRunner(
         for n in range(total_to_generate):
             self.current_sample = n
             images, nsfw_content_detected = self.sample_diffusers_model(data)
-            if use_callback:
-                self.image_handler(images, self.requested_data, nsfw_content_detected)
-            else:
-                return images, nsfw_content_detected
+            if self.is_txt2vid and "video_filename" not in self.requested_data:
+                self.requested_data["video_filename"] = self.txt2vid_file
+            self.image_handler(images, self.requested_data, nsfw_content_detected)
             if self.do_cancel:
                 self.do_cancel = False
                 break
@@ -924,19 +923,19 @@ class SDRunner(
 
     def image_handler(self, images, data, nsfw_content_detected):
         if images:
-            if self._image_handler:
-                self._image_handler(images, data, nsfw_content_detected)
-            elif self._image_var:
-                self._image_var.set({
-                    "images": images,
-                    "data": data,
-                    "nsfw_content_detected": nsfw_content_detected == True,
-                })
-            # self.save_pipeline()
+            self.send_message({
+                "images": images,
+                "data": data,
+                "nsfw_content_detected": nsfw_content_detected == True,
+            }, MessageCode.IMAGE_GENERATED)
 
     def final_callback(self):
         total = int(self.steps * self.strength)
-        self.tqdm_callback(total, total, self.action)
+        self.send_message({
+            "step": total,
+            "total": total,
+            "action": self.action
+        }, code=MessageCode.PROGRESS)
 
     def callback(self, step: int, _time_step, _latents):
         # convert _latents to image
@@ -948,13 +947,13 @@ class SDRunner(
             not self.enable_controlnet and
             (self.is_img2img or self.is_depth2img)
         ) else self.steps
-        self.tqdm_callback(
-            step,
-            steps,
-            self.action,
-            image=image,
-            data=data,
-        )
+        self.send_message({
+            "step": step,
+            "total": steps,
+            "action": self.action,
+            "image": image,
+            "data": data
+        }, code=MessageCode.PROGRESS)
 
     def latents_to_image(self, latents: torch.Tensor):
         image = latents.permute(0, 2, 3, 1)
@@ -966,15 +965,9 @@ class SDRunner(
 
     def generator_sample(
         self,
-        data: dict,
-        image_var: callable,
-        error_var: callable = None,
-        use_callback: bool = True,
+        data: dict
     ):
-        self._image_var = image_var
-        self._error_var = error_var
-        self._use_callback = use_callback
-        self.set_message("Generating image...")
+        self.send_message(f"Generating {'video' if self.is_txt2vid else 'image'}...")
 
         action = "depth2img" if data["action"] == "depth" else data["action"]
 
@@ -987,7 +980,7 @@ class SDRunner(
         error = None
         error_message = ""
         try:
-            self.generate(data, image_var=image_var, use_callback=use_callback)
+            self.generate(data)
         except OSError as e:
             error_message = "model_not_found"
             error = e
@@ -1009,10 +1002,10 @@ class SDRunner(
             self.reload_model = True
             if error_message == "model_not_found" and self.local_files_only and self.has_internet_connection:
                 # check if we have an internet connection
-                self.set_message("Downloading model files...")
+                self.send_message("Downloading model files...")
                 self.local_files_only = False
                 self.initialize()
-                return self.generator_sample(data, image_var, error_var)
+                return self.generator_sample(data)
             elif not self.has_internet_connection:
                 self.log_error("Please check your internet connection and try again.")
             self.scheduler_name = None
@@ -1343,7 +1336,7 @@ class SDRunner(
         # get models from database
         model_name = self.options.get(f"{self.action}_model", None)
 
-        self.set_message(f"Loading model {model_name}")
+        self.send_message(f"Loading model {model_name}")
 
         self._previous_model = self.current_model
 

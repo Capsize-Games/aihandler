@@ -71,7 +71,6 @@ class PromptVariable:
             random_value = f"({random_value}){weights[variable]['weight']}"
 
         if original_variable == "gender_name":
-            print("returning gender_name")
             return f"{random_value}_name"
 
         return random_value
