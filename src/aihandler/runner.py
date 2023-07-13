@@ -292,8 +292,6 @@ class SDRunner(
 
     @property
     def use_compel(self):
-        if self.disable_compel:
-            return False
         return not self.use_enable_sequential_cpu_offload and \
                not self.is_txt2vid and \
                not self.is_sd_xl and \
