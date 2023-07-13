@@ -802,10 +802,11 @@ class SDRunner(
         if self.deterministic_generation:
             if self.is_txt2img:
                 if self.deterministic_seed:
-                    generator = [self.generator() for _i in range(4)]
+                    generator = [self.generator(seed=_i) for _i in range(4)]
                 else:
-                    generator = [self.generator(self.seed+i) for i in range(4)]
+                    generator = [self.generator(seed=self.seed+i) for i in range(4)]
                 args["generator"] = generator
+
             if not self.is_upscale and not self.is_superresolution and not self.is_txt2vid:
                 args["num_images_per_prompt"] = 1
 
