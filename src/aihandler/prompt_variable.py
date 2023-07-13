@@ -41,7 +41,6 @@ class PromptVariable:
                 return random.randint(values["min"], values["max"])
         if len(values) > 0:
             return random.choice(values).lower()
-        print("No values found for variable: " + variable_name)
         return ""
 
     @classmethod
