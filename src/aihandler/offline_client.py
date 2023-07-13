@@ -6,7 +6,7 @@ import time
 import base64
 import traceback
 
-from settings import LOG_LEVEL
+from settings import LOG_LEVEL, MessageCode
 from io import BytesIO
 from PIL import Image
 from logger import logger
@@ -107,7 +107,7 @@ class OfflineClient:
                 image.save(f"image_{index}.png")
 
     def error_handler(self, error):
-        self.message_handler(message=error, error=True)
+        self.send_message(str(error), MessageCode.ERROR)
 
     def message_handler(self, message=None, error=False):
         if error:
