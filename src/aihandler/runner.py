@@ -6,7 +6,6 @@ from controlnet_aux.processor import Processor
 from diffusers.utils import export_to_gif
 from aihandler.base_runner import BaseRunner
 from aihandler.mixins.kandinsky_mixin import KandinskyMixin
-from aihandler.prompt_parser import PromptParser
 import traceback
 import torch
 from aihandler.logger import logger
@@ -290,8 +289,11 @@ class SDRunner(
     def do_nsfw_filter(self):
         return self.options.get("do_nsfw_filter", True) == True
 
+
     @property
     def use_compel(self):
+        if self.disable_compel:
+            return False
         return not self.use_enable_sequential_cpu_offload and \
                not self.is_txt2vid and \
                not self.is_sd_xl and \
