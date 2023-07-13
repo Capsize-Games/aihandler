@@ -26,7 +26,7 @@ class EmbeddingMixin:
                         self.pipe.load_textual_inversion(path, token=token, weight_name=f)
                     except Exception as e:
                         self.send_message({
-                            "embedding_name": os.path.basename(path).split(".")[0].lower(),
+                            "embedding_name": token,
                             "model_name": self.model,
                         }, MessageCode.EMBEDDING_LOAD_FAILED)
                         logger.warning(e)
