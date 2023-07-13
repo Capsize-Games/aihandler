@@ -835,7 +835,6 @@ class SDRunner(
 
         if self.is_txt2img:
             kwargs["prompt"] = self.prompt
-            kwargs["negative_prompt"] = self.negative_prompt
 
         if self.is_img2img:
             kwargs["image"] = self.image
@@ -1090,6 +1089,12 @@ class SDRunner(
 
     def image_handler(self, images, data, nsfw_content_detected):
         if images:
+            tab_section = "stablediffusion"
+            if self.use_kandinsky:
+                tab_section = "kandinsky"
+            elif self.is_shapegif:
+                tab_section = "shapegif"
+            data["tab_section"] = tab_section
             self.send_message({
                 "images": images,
                 "data": data,
@@ -1098,16 +1103,27 @@ class SDRunner(
 
     def final_callback(self):
         total = int(self.steps * self.strength)
+        tab_section = "stablediffusion"
+        if self.use_kandinsky:
+            tab_section = "kandinsky"
+        elif self.is_shapegif:
+            tab_section = "shapegif"
         self.send_message({
             "step": total,
             "total": total,
-            "action": self.action
+            "action": self.action,
+            "tab_section": tab_section,
         }, code=MessageCode.PROGRESS)
 
     def callback(self, step: int, _time_step, _latents):
         # convert _latents to image
         image = None
         data = self.data
+        tab_section = "stablediffusion"
+        if self.use_kandinsky:
+            tab_section = "stablediffusion"
+        elif self.is_shapegif:
+            tab_section = "shapegif"
         if self.is_txt2vid:
             data["video_filename"] = self.txt2vid_file
         steps = int(self.steps * self.strength) if (
@@ -1119,7 +1135,8 @@ class SDRunner(
             "total": steps,
             "action": self.action,
             "image": image,
-            "data": data
+            "data": data,
+            "tab_section": tab_section
         }, code=MessageCode.PROGRESS)
 
     def latents_to_image(self, latents: torch.Tensor):
