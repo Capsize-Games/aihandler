@@ -590,7 +590,9 @@ class SDRunner(
             StableDiffusionXLImg2ImgPipeline,
             TextToVideoSDPipeline,
             VideoToVideoSDPipeline,
-            TextToVideoZeroPipeline
+            TextToVideoZeroPipeline,
+            KandinskyPipeline,
+            KandinskyImg2ImgPipeline
         )
 
         if (self.enable_controlnet
@@ -603,10 +605,20 @@ class SDRunner(
                 return StableDiffusionXLPipeline
             elif self.is_img2img:
                 return StableDiffusionXLImg2ImgPipeline
-        if self.is_txt2img and not self.is_shapegif:
-            return StableDiffusionPipeline
-        elif self.is_img2img and not self.is_shapegif:
-            return StableDiffusionImg2ImgPipeline
+        if self.is_txt2img:
+            if self.is_shapegif:
+                return DiffusionPipeline
+            elif self.use_kandinsky:
+                return KandinskyPipeline
+            else:
+                return StableDiffusionPipeline
+        elif self.is_img2img:
+            if self.is_shapegif:
+                return DiffusionPipeline
+            elif self.use_kandinsky:
+                return KandinskyImg2ImgPipeline
+            else:
+                return StableDiffusionImg2ImgPipeline
         elif self.is_pix2pix:
             return StableDiffusionInstructPix2PixPipeline
         elif self.is_outpaint:
