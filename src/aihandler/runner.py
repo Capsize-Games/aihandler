@@ -18,7 +18,7 @@ from aihandler.mixins.embedding_mixin import EmbeddingMixin
 from aihandler.mixins.txttovideo_mixin import TexttovideoMixin
 from aihandler.mixins.compel_mixin import CompelMixin
 from aihandler.mixins.scheduler_mixin import SchedulerMixin
-from aihandler.settings import MessageCode
+from aihandler.settings import MessageCode, MAX_SEED
 
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
@@ -181,9 +181,12 @@ class SDRunner(
         return np.random.choice(adjectives)
 
     @property
+    def prompt_data(self):
+        return self.options.get(f"prompt_data", None)
+
+    @property
     def prompt(self):
         prompt = self.options.get(f"{self.action}_prompt", "")
-        prompt = PromptParser.parse(None, None, prompt)
         if self.deterministic_seed:
             prompt = [prompt + f", {self.random_word()}" for _t in range(4)]
         elif self.deterministic_generation:
@@ -194,7 +197,6 @@ class SDRunner(
     @property
     def negative_prompt(self):
         negative_prompt = self.options.get(f"{self.action}_negative_prompt", "")
-        negative_prompt = PromptParser.parse(None, None, negative_prompt)
         if self.deterministic_generation:
             negative_prompt = [negative_prompt for t in range(4)]
         self.requested_data[f"{self.action}_negative_prompt"] = negative_prompt
@@ -633,7 +635,7 @@ class SDRunner(
         return torch.Generator(device=device).manual_seed(seed)
 
     def prepare_options(self, data):
-        self.send_message(f"Preparing options...")
+        logger.info(f"Preparing options...")
         action = data["action"]
         options = data["options"]
         requested_model = options.get(f"{action}_model", None)
@@ -1026,10 +1028,25 @@ class SDRunner(
 
     requested_data = None
 
-    def generate(self, data: dict):
-        logger.info("generate called")
+    def process_prompts(self, data, seed):
+        """
+        Process the prompts - called before generate (and during in the case of multiple samples)
+        :return:
+        """
+
+        prompt_data = self.prompt_data
+        if prompt_data is None:
+            return data
+        logger.info("Process prompt")
+        prompt, negative_prompt = prompt_data.build_prompts(seed=seed)
+        data["options"][f"{self.action}_prompt"] = prompt
+        data["options"][f"{self.action}_negative_prompt"] = negative_prompt
+        self.clear_prompt_embeds()
+        self.process_data(data)
+        return data
+
+    def process_data(self, data: dict):
         self.requested_data = data
-        self.do_cancel = False
         self.prepare_options(data)
         if self.do_clear_kandinsky:
             self.clear_kandinsky()
@@ -1038,6 +1055,11 @@ class SDRunner(
         self.initialize()
         self._change_scheduler()
 
+    def generate(self, data: dict):
+        logger.info("generate called")
+        self.do_cancel = False
+        self.process_data(data)
+
         if not self.use_kandinsky:
             self.send_message(f"Applying memory settings...")
             self.apply_memory_efficient_settings()
@@ -1045,7 +1067,11 @@ class SDRunner(
             total_to_generate = 1
         else:
             total_to_generate = self.batch_size
+
+        seed = self.seed
         for n in range(total_to_generate):
+            if n > 0:
+                data = self.process_prompts(data, seed)
             self.current_sample = n
             images, nsfw_content_detected = self.sample_diffusers_model(data)
             if self.is_txt2vid and "video_filename" not in self.requested_data:
@@ -1054,6 +1080,11 @@ class SDRunner(
             if self.do_cancel:
                 self.do_cancel = False
                 break
+
+            seed += 1
+            if seed >= MAX_SEED:
+                seed = 0
+
         self.current_sample = 0
 
     def image_handler(self, images, data, nsfw_content_detected):
