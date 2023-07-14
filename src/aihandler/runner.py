@@ -1415,13 +1415,15 @@ class SDRunner(
                         scheduler=self.load_scheduler(),
                         **kwargs
                     )
-                self.initialize_safety_checker()
+                if not self.is_depth2img:
+                    self.initialize_safety_checker()
                 self.controlnet_loaded = self.enable_controlnet
 
                 if self.is_upscale:
                     self.pipe.scheduler = self.load_scheduler(force_scheduler_name="Euler")
 
-            self.safety_checker = self.pipe.safety_checker
+            if not self.is_depth2img:
+                self.safety_checker = self.pipe.safety_checker
 
         # store the model_path
         self.pipe.model_path = self.model_path
