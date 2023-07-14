@@ -10,46 +10,51 @@ class PromptVariable:
     """
 
     @classmethod
-    def get_values(cls, data, variable_name):
+    def get_values(cls, variable_name, data):
         """
         Gets the values for a variable.
-        :param prompt_type:
+        :param data:
         :param variable_name:
         :return:
         """
-        return data.get(variable_name, [])
+        try:
+            return data.get(variable_name, [])
+        except AttributeError:
+            return []
 
     @classmethod
-    def get_random_value(cls, data, prompt_type=None, variable_name="", available_variables=None):
+    def get_random_value(cls, variable_name="", data=None):
         """
         Gets a random value for a variable.
-        :param prompt_type:
         :param variable_name:
+        :param data:
         :return:
         """
+        if data is None:
+            data = {}
         variable_name = variable_name.lower()
 
         # handle special case of human_name
-        if available_variables and variable_name in available_variables:
-            values = available_variables.get(variable_name, [])
-        else:
-            values = cls.get_values(data, variable_name)
+        values = cls.get_values(variable_name, data)
         if isinstance(values, dict):
             if "type" in values and values["type"] == "range":
                 return random.randint(values["min"], values["max"])
         if len(values) > 0:
             return random.choice(values).lower()
-        print("No values found for variable: " + variable_name)
         return ""
 
     @classmethod
-    def translate_variable(cls, data, prompt_type=None, variable="", available_variables=None, weights=None, seed=None):
+    def translate_variable(cls, variable="", data=None, weights=None, seed=None):
         """
         Translates a variable into a random value.
-        :param prompt_type:
+        :param seed:
+        :param weights:
+        :param data:
         :param variable:
         :return:
         """
+        if data is None:
+            data = {}
         if seed:
             random.seed(seed)
         # remove the $ from the variable
@@ -61,17 +66,13 @@ class PromptVariable:
             variable = "gender"
 
         # get the random value
-        if prompt_type:
-            random_value = cls.get_random_value(data, prompt_type, variable, available_variables)
-        else:
-            random_value = cls.get_random_value(data, "misc", variable, available_variables)
+        random_value = cls.get_random_value(variable, data)
         if variable == "age":
             random_value = f"{random_value} years old"
         if weights and variable in weights and (original_variable is None or original_variable != "gender_name"):
             random_value = f"({random_value}){weights[variable]['weight']}"
 
         if original_variable == "gender_name":
-            print("returning gender_name")
             return f"{random_value}_name"
 
         return random_value
@@ -101,26 +102,26 @@ class PromptVariable:
         return f'{match.group("var")}'
 
     @classmethod
-    def parse(cls, data, prompt_type=None, prompt="", available_variables=None, weights=None, seed=None):
+    def parse(cls, prompt="", data=None, weights=None, seed=None):
         """
         Finds all variables in a prompt, and replaces them with random values.
-        :param prompt_type:
         :param prompt:
+        :param data:
+        :param weights:
+        :param seed:
         :return:
         """
-        variables = cls.find_variables(prompt)
+        found_variables = cls.find_variables(prompt)
         # pattern = r"(?<!\$)(?P<var>\$[a-zA-Z_0-9]+)"
         # prompt = re.sub(pattern, partial(cls.replace_var_with_weight, weights=weights), prompt)
-        for variable in variables:
+        for variable in found_variables:
             translated_variable = cls.translate_variable(
-                data,
-                prompt_type,
                 variable,
-                available_variables=available_variables,
+                data,
                 weights=weights,
                 seed=seed
             )
-            # find variables of of the form $variable but not $$variable
+            # find variables of the form $variable but not $$variable
             if variable == "$gender_name":
                 prompt = prompt.replace("$$gender_name", f"${translated_variable}")
             else:

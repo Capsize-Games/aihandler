@@ -3,24 +3,29 @@ from aihandler.prompt_weight_bridge import PromptWeightBridge
 
 
 class TestPromptWeightConvert(unittest.TestCase):
+    def test_simple(self):
+        prompt = "Example (a GHI:1.4)"
+        expected_prompt = "Example (a GHI)1.4"
+        self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
+
     def test_use_case_a(self):
-        prompt = "Example (ABC): 1.23 XYZ (DEF) (GHI:2.3)"
-        expected_prompt = "Example (ABC)1.1: 1.23 XYZ (DEF)1.1 ((GHI)2.3)1.1"
+        prompt = "Example (ABC): 1.23 XYZ (DEF) (GHI:1.4)"
+        expected_prompt = "Example (ABC)1.1: 1.23 XYZ (DEF)1.1 (GHI)1.4"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
     #
     def test_use_case_b(self):
         prompt = "(a dog:0.5) and a cat"
-        expected_prompt = "(a (dog)0.5)1.1 and a cat"
+        expected_prompt = "(a dog)0.5 and a cat"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
     def test_use_case_c(self):
         prompt = "A perfect photo of a woman wearing a respirator wandering through the (toxic wasteland:1.3)"
-        expected_prompt = "A perfect photo of a woman wearing a respirator wandering through the (toxic (wasteland)1.3)1.1"
+        expected_prompt = "A perfect photo of a woman wearing a respirator wandering through the (toxic wasteland)1.3"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
     def test_use_case_d(self):
         prompt = "(worst quality:0.8), fantasy, cartoon, halftone print, (cinematic:1.2), verybadimagenegative_v1.3, easynegative, (surreal:0.8), (modernism:0.8), (art deco:0.8), (art nouveau:0.8)"
-        expected_prompt = "(worst (quality)0.8)1.1, fantasy, cartoon, halftone print, ((cinematic)1.2)1.1, verybadimagenegative_v1.3, easynegative, ((surreal)0.8)1.1, ((modernism)0.8)1.1, (art (deco)0.8)1.1, (art (nouveau)0.8)1.1"
+        expected_prompt = "(worst quality)0.8, fantasy, cartoon, halftone print, (cinematic)1.2, verybadimagenegative_v1.3, easynegative, (surreal)0.8, (modernism)0.8, (art deco)0.8, (art nouveau)0.8"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
     def test_convert_basic_parentheses(self):
@@ -45,11 +50,11 @@ class TestPromptWeightConvert(unittest.TestCase):
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
         prompt = "(((((((((((a car))))))))))) and a cat"
-        expected_prompt = "(a car)2.0 and a cat"
+        expected_prompt = "(a car)1.4 and a cat"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
         prompt = "(((((((((((a car))))))))))) and (((a cat)))"
-        expected_prompt = "(a car)2.0 and (a cat)1.33"
+        expected_prompt = "(a car)1.4 and (a cat)1.33"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
     def test_convert_basic_brackets(self):
@@ -83,24 +88,24 @@ class TestPromptWeightConvert(unittest.TestCase):
 
     def test_convert_prompt_with_weight_value(self):
         prompt = "(a bird:0.5) and a plane"
-        expected_prompt = "(a (bird)0.5)1.1 and a plane"
+        expected_prompt = "(a bird)0.5 and a plane"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
         prompt = "a dog and (a cat:0.6)"
-        expected_prompt = "a dog and (a (cat)0.6)1.1"
+        expected_prompt = "a dog and (a cat)0.6"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
         prompt = "(a boat:0.5) and (a ship:0.6)"
-        expected_prompt = "(a (boat)0.5)1.1 and (a (ship)0.6)1.1"
+        expected_prompt = "(a boat)0.5 and (a ship)0.6"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
         prompt = "(a man:0.5) and a woman"
-        expected_prompt = "(a (man)0.5)1.1 and a woman"
+        expected_prompt = "(a man)0.5 and a woman"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
     def test_compel_prompt_weight(self):
-        prompt = "(a asdf)1.5 and a cat in a car"
-        expected_prompt = "(a asdf)1.5 and a cat in a car"
+        prompt = "(a asdf)1.4 and a cat in a car"
+        expected_prompt = "(a asdf)1.4 and a cat in a car"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
         prompt = "a man (eating an apple)++++"
@@ -137,7 +142,7 @@ class TestPromptWeightConvert(unittest.TestCase):
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
         prompt = "a man ((drinking:1.1) ((beer)))0.5"
-        expected_prompt = "a man (((drinking)1.1)1.1 (beer)1.21)0.5"
+        expected_prompt = "a man ((drinking)1.1 (beer)1.21)0.5"
         self.assertEqual(PromptWeightBridge.convert(prompt), expected_prompt)
 
         prompt = "a fox (drinking) water in a [bar] from (the country) of [canada]"

@@ -27,7 +27,11 @@ class LoraMixin:
                     if file.startswith(lora["name"]):
                         filepath = os.path.join(root, file)
                         break
-            self.load_lora(filepath)
+            self.load_lora(filepath, lora)
+
+    def load_lora(self, checkpoint_path, lora):
+        try:
+            self.pipe.load_lora_weights(".", weight_name=checkpoint_path)
             self.loaded_lora.append({"name": lora["name"], "scale": lora["scale"]})
-    def load_lora(self, checkpoint_path):
-        self.pipe.load_lora_weights(".", weight_name=checkpoint_path)
+        except AttributeError:
+            logger.warning("This model does not support LORA")

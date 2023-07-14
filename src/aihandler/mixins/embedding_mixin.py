@@ -1,6 +1,7 @@
 import os
 import torch
 from aihandler.logger import logger
+from aihandler.settings import MessageCode
 
 
 class EmbeddingMixin:
@@ -24,9 +25,11 @@ class EmbeddingMixin:
                     try:
                         self.pipe.load_textual_inversion(path, token=token, weight_name=f)
                     except Exception as e:
-                        logger.warning("Failed to load " + path)
+                        self.send_message({
+                            "embedding_name": token,
+                            "model_name": self.model,
+                        }, MessageCode.EMBEDDING_LOAD_FAILED)
                         logger.warning(e)
-
             except AttributeError as e:
                 if "load_textual_inversion" in str(e):
                     embeddings_not_supported = True
@@ -34,5 +37,6 @@ class EmbeddingMixin:
                     raise e
             except RuntimeError as e:
                 embeddings_not_supported = True
+
             if embeddings_not_supported:
                 logger.warning("Embeddings not supported in this model")

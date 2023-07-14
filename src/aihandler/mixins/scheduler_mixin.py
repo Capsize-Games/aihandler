@@ -22,7 +22,8 @@ class SchedulerMixin:
         "DDPM": "DDPMScheduler",
         "DEIS": "DEISMultistepScheduler",
         "DPM 2M SDE Karras": "DPMSolverMultistepScheduler",
-        "PNDM": "PNDMScheduler",
+        "PLMS": "PNDMScheduler",
+        "DPM": "DPMSolverMultistepScheduler",
 
         "DDIM Inverse": "DDIMInverseScheduler",
         "IPNM": "IPNDMScheduler",
@@ -41,6 +42,8 @@ class SchedulerMixin:
     def scheduler_section(self):
         if self.use_kandinsky:
             return f"kandinsky_{self.action}"
+        elif self.is_shapegif:
+            return f"shapegif_{self.action}"
         return self.action
 
     def clear_scheduler(self):
@@ -62,13 +65,14 @@ class SchedulerMixin:
         if not self.model_path or self.model_path == "":
             traceback.print_stack()
             raise Exception("Chicken / egg problem, model path not set")
-
         self.current_scheduler_name = force_scheduler_name if force_scheduler_name else self.options.get(f"{self.action}_scheduler")
         scheduler_name = force_scheduler_name if force_scheduler_name else self.scheduler_name
         if not force_scheduler_name and scheduler_name not in AVAILABLE_SCHEDULERS_BY_ACTION[self.scheduler_section]:
             scheduler_name = AVAILABLE_SCHEDULERS_BY_ACTION[self.scheduler_section][0]
         scheduler_class_name = self.schedulers[scheduler_name]
         scheduler_class = getattr(diffusers, scheduler_class_name)
+
+
         kwargs = {
             "subfolder": "scheduler"
         }
@@ -97,12 +101,15 @@ class SchedulerMixin:
                     kwargs["algorithm_type"] = "dpmsolver++"
                 else:
                     kwargs["algorithm_type"] = "dpmsolver"
-            self._scheduler = scheduler_class.from_pretrained(
-                self.model_path,
-                local_files_only=self.local_files_only,
-                use_auth_token=self.data["options"]["hf_token"],
-                **kwargs
-            )
+            try:
+                self._scheduler = scheduler_class.from_pretrained(
+                    self.model_path,
+                    local_files_only=self.local_files_only,
+                    use_auth_token=self.data["options"]["hf_token"],
+                    **kwargs
+                )
+            except NotImplementedError as e:
+                logger.error(f"Unable to load scheduler {scheduler_name} from {self.model_path}")
         return self._scheduler
 
     def _change_scheduler(self):
@@ -119,7 +126,7 @@ class SchedulerMixin:
         scheduler_name = self.options.get(f"{self.action}_scheduler", "euler_a")
         if self.scheduler_name != scheduler_name:
             logger.info("Prepare scheduler")
-            self.set_message("Preparing scheduler...")
+            self.send_message("Preparing scheduler...")
             self.scheduler_name = scheduler_name
             self.do_change_scheduler = True
         else:

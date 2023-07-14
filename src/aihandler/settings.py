@@ -1,6 +1,7 @@
 import logging
 import os
 import platform
+from enum import Enum
 
 PLATFORM = platform.system()
 try:
@@ -84,9 +85,13 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
     "vid2vid": SCHEDULERS,
     "outpaint": SCHEDULERS,
     "upscale": [EULER],
-    "superresolution": [DDIM, LMS, PLMS],
+    "superresolution": [
+        DDIM,
+        LMS,
+        PLMS
+    ],
     "controlnet": SCHEDULERS,
-    "txt2vid": [DPM_PP_2M],
+    "txt2vid": SCHEDULERS,
     "kandinsky_txt2img": [
         EULER_ANCESTRAL,
         DPM2_A_K,
@@ -115,12 +120,18 @@ AVAILABLE_SCHEDULERS_BY_ACTION = {
         DPM_PP_2M_SDE_K,
         DDIM,
     ],
+    "shapegif_txt2img": [
+        HEUN,
+    ],
+    "shapegif_img2img": [
+        HEUN,
+    ]
 }
 UPSCALERS = ["None", "Lanczos"]
 MODELS = {
     "stablediffusion_generate": {
-        "Stable Diffusion V2.1": {
-            "path": "stabilityai/stable-diffusion-2-1-base",
+        "Stable Diffusion V2.1 512": {
+            "path": "stabilityai/stable-diffusion-2",
             "branch": "fp16",
         },
         "Stable Diffusion V2.1 768": {
@@ -268,6 +279,14 @@ MODELS = {
         }
     },
     "stablediffusion_txt2vid":  {
+        "Zeroscope v2": {
+            "path": "cerspense/zeroscope_v2_576w",
+            "branch": "fp16",
+        },
+        "Zeroscope v2 XL": {
+            "path": "cerspense/zeroscope_v2_XL",
+            "branch": "fp16",
+        },
         "damo-vilab": {
             "path": "damo-vilab/text-to-video-ms-1.7b",
             "branch": "fp16",
@@ -291,6 +310,16 @@ MODELS = {
             "branch": "fp16",
         },
     },
+    "shapegif_generate": {
+        "shap-e": {
+            "path": "openai/shap-e",
+            "branch": "fp16",
+        },
+        "shap-e-img2img": {
+            "path": "openai/shap-e-img2img",
+            "branch": "fp16",
+        }
+    }
 }
 TEXT_MODELS = {
     "flan-t5-xxl": {
@@ -393,3 +422,12 @@ LARGEST_WORKING_SIZE=2048
 SMALLEST_WORKING_SIZE=8
 BRUSH_INC_SIZE=8
 LOG_LEVEL = logging.FATAL if AIRUNNER_ENVIRONMENT == "prod" else logging.DEBUG
+
+
+class MessageCode(Enum):
+    STATUS = 100
+    ERROR = 200
+    WARNING = 300
+    PROGRESS = 400
+    IMAGE_GENERATED = 500
+    EMBEDDING_LOAD_FAILED = 600

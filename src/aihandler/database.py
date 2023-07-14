@@ -52,6 +52,7 @@ DEFAULT_GENERATOR_SETTINGS = {
     "controlnet_var": "",
     "enable_controlnet": False,
     "controlnet_guidance_scale": 50,
+    "zeroshot": False,
 }
 GENERATOR_TYPES = {
     "prompt": StringVar,
@@ -76,6 +77,7 @@ GENERATOR_TYPES = {
     "controlnet_var": StringVar,
     "enable_controlnet": BooleanVar,
     "controlnet_guidance_scale": IntVar,
+    "zeroshot": BooleanVar,
 }
 USER = os.environ.get("USER", "")
 default_model_path = os.path.join("/", "home", USER, "stablediffusion")
@@ -95,6 +97,8 @@ GENERATORS = [
     "kandinsky_img2img",
     "kandinsky_inpaint",
     "kandinsky_outpaint",
+    "shapegif_txt2img",
+    "shapegif_img2img",
 ]
 
 class PropertyBase:
@@ -144,6 +148,8 @@ class BaseSettings(PropertyBase):
             namespace = self.namespace
             if self.generator == "kandinsky":
                 namespace = f"kandinsky_{namespace}"
+            if self.generator == "shapegif":
+                namespace = f"shapegif_{namespace}"
             if name.startswith(namespace):
                 raise e
             else:
@@ -225,6 +231,7 @@ class RunAISettings(BaseSettings):
         self.pix2pix_model_path = StringVar(app)
         self.outpaint_model_path = StringVar(app)
         self.upscale_model_path = StringVar(app)
+        self.txt2vid_model_path = StringVar(app)
 
         self.mask_brush_size = IntVar(app, 10)
 
@@ -260,6 +267,7 @@ class RunAISettings(BaseSettings):
         # Image export preferences
         self.auto_export_images = BooleanVar(app)
         self.image_path = StringVar(app, "")
+        self.gif_path = StringVar(app, "")
         self.image_export_type = StringVar(app, "png")
 
         # Video export preferences
@@ -294,14 +302,17 @@ class RunAISettings(BaseSettings):
         self.auto_prompt_weight = FloatVar(app, 0.5)
         self.auto_negative_prompt_weight = FloatVar(app, 0.5)
         self.negative_auto_prompt_weight = FloatVar(app, 0.5)
-        self.prompt_generator_basic_category = StringVar(app, "")
-        self.prompt_generator_advanced_category = StringVar(app, "")
-        self.prompt_generator_basic_prompt = StringVar(app, "")
-        self.prompt_generator_advanced_prompt = StringVar(app, "")
-        self.prompt_generator_basic_style = StringVar(app, "")
-        self.prompt_generator_advanced_style = StringVar(app, "")
+        self.prompt_generator_category = StringVar(app, "")
+        self.prompt_generator_prompt = StringVar(app, "")
         self.prompt_generator_weighted_values = DictVar(app, {})
-        self.prompt_generator_basic_randomize_checkbox = BooleanVar(app, False)
+        self.prompt_generator_prompt_color = StringVar(app, "")
+        self.prompt_generator_prompt_genre = StringVar(app, "")
+        self.prompt_generator_prompt_style = StringVar(app, "")
+        self.prompt_generator_advanced = BooleanVar(app, False)
+        self.prompt_generator_prefix = StringVar(app, "")
+        self.prompt_generator_suffix = StringVar(app, "")
+        self.negative_prompt_generator_prefix = StringVar(app, "")
+        self.negative_prompt_generator_suffix = StringVar(app, "")
 
 
     def reset_settings_to_default(self):
@@ -370,6 +381,18 @@ class RunAISettings(BaseSettings):
 
         self.auto_prompt_weight.set(0.5)
         self.auto_negative_prompt_weight.set(0.5)
+        self.negative_auto_prompt_weight.set(0.5)
+        self.prompt_generator_category.set("")
+        self.prompt_generator_prompt.set("")
+        self.prompt_generator_weighted_values.set({})
+        self.prompt_generator_prompt_genre.set("")
+        self.prompt_generator_prompt_color.set()
+        self.prompt_generator_prompt_style.set("")
+        self.prompt_generator_advanced.set(False)
+        self.prompt_generator_prefix.set("")
+        self.prompt_generator_suffix.set("")
+        self.negative_prompt_generator_prefix.set("")
+        self.negative_prompt_generator_suffix.set("")
 
 
 class PromptSettings(BaseSettings):

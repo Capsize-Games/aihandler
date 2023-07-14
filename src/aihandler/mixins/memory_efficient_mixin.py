@@ -43,7 +43,7 @@ class MemoryEfficientMixin:
         return self.settings_manager.settings.use_tiled_vae.get()
 
     def apply_last_channels(self):
-        if self.use_kandinsky or self.is_txt2vid:
+        if self.use_kandinsky or self.is_txt2vid or self.is_shapegif:
             return
         if self.use_last_channels:
             logger.info("Enabling torch.channels_last")
@@ -56,7 +56,7 @@ class MemoryEfficientMixin:
         if self.action not in [
             "img2img", "depth2img", "pix2pix", "outpaint", "superresolution", "controlnet", "upscale"
         ] and not self.use_kandinsky:
-            if self.use_enable_vae_slicing:
+            if self.use_enable_vae_slicing or self.is_txt2vid:
                 logger.info("Enabling vae slicing")
                 try:
                     self.pipe.enable_vae_slicing()
@@ -134,6 +134,10 @@ class MemoryEfficientMixin:
         """
         return
 
+    def enable_memory_chunking(self):
+        if self.is_txt2vid and not self.is_zeroshot:
+            self.pipe.unet.enable_forward_chunking(chunk_size=1, dim=1)
+
     def move_pipe_to_cuda(self, pipe):
         if not self.use_enable_sequential_cpu_offload and not self.enable_model_cpu_offload:
             logger.info("Moving to cuda")
@@ -169,6 +173,7 @@ class MemoryEfficientMixin:
     def apply_memory_efficient_settings(self):
         logger.info("Applying memory efficient settings")
         self.apply_last_channels()
+        self.enable_memory_chunking()
         self.apply_vae_slicing()
         self.apply_cpu_offload()
         self.apply_model_offload()

@@ -31,19 +31,19 @@ install_requires = [
     "setuptools==67.7.2",
     "typing_extensions==4.5.0",
     "urllib3==1.26.15",
-    "diffusers==0.18.1",
+    "diffusers==0.18.2",
     "transformers==4.30.1",
     "compel==1.2.1",
     "sympy==1.12.0",
     "regex",
     "matplotlib==3.7.2",
-    "invisible-watermark==0.2.0",
+    "invisible-watermark==0.2.0"
 ]
 
 
 setup(
     name="aihandler",
-    version="1.18.2",
+    version="1.19.0",
     author="Capsize LLC",
     description="AI Handler: An engine which wraps certain huggingface models",
     long_description=open("README.md", "r", encoding="utf-8").read(),

@@ -12,7 +12,6 @@ from aihandler.settings import LOG_LEVEL
 os.environ["DISABLE_TELEMETRY"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "0"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
-os.environ["BITSANDBYTES_NOWELCOME"] = "1"
 logger.set_level(LOG_LEVEL)
 
 

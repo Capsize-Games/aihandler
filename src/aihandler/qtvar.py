@@ -52,20 +52,11 @@ class TQDMVar(Var):
         self.my_signal.emit(self.step, self.total, self.action, self.image, self.data)
 
 
-class MessageHandlerVar(Var):
-    message = pyqtSignal(dict)
+class MessageHandlerVar(QObject):
     my_signal = pyqtSignal(dict)
 
-    def set(self, val, skip_save=False):
-        if val is None:
-            return
-        self.message = val
-        self.emit()
-
-    def emit(self):
-        self.my_signal.emit({
-            "response": self.message
-        })
+    def emit(self, message):
+        self.my_signal.emit(message)
 
 
 class ErrorHandlerVar(Var):

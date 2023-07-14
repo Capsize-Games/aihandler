@@ -38,12 +38,13 @@ class MergeMixin:
         if base_model_path == "stabilityai/stable-diffusion-xl-base-0.9":
             return StableDiffusionXLPipeline
 
-        print("LOADING PIPE FROM PRETRAINED", base_model_path)
+
         if base_model_path.endswith('.ckpt') or base_model_path.endswith('.safetensors'):
             pipe = self._load_ckpt_model(
                 path=base_model_path,
                 is_safetensors=base_model_path.endswith('.safetensors'),
-                scheduler_name="Euler a"
+                scheduler_name="Euler a",
+                local_files_only=False
             )
         else:
             pipe = PipeCLS.from_pretrained(
@@ -72,6 +73,10 @@ class MergeMixin:
         output_path = os.path.join(output_path, name)
         print(f"Saving to {output_path}")
         pipe.save_pretrained(output_path)
+        try:
+            os.remove(os.path.join(output_path, f"{name}.pt"))
+        except Exception as e:
+            pass
         print("merge complete")
 
     def merge_vae(self, vae_a, vae_b, weight_b=0.6):
