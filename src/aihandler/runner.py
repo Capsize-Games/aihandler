@@ -1302,6 +1302,8 @@ class SDRunner(
         if self.processor:
             logger.info("Controlnet: Processing image")
             image = self.processor(image)
+            # resize image to width and height
+            image = image.resize((self.width, self.height))
             return image
         logger.error("No controlnet processor found")
 
